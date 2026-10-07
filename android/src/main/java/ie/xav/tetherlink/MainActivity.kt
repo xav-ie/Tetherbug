@@ -1,5 +1,13 @@
 package ie.xav.tetherlink
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.animation.AnimatedVisibility
+import android.provider.Settings
+import android.content.Context
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothClass
+import android.annotation.SuppressLint
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -103,6 +111,7 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
     val shizukuRunning = Shizuku.pingBinder()
     val shizukuReady = Privileged.isReady()
     val appleIe = shizukuReady && runCatching { Privileged.hasAppleIe() }.getOrDefault(false)
+    val pairedMacs = if (permissionsGranted) pairedComputers(context) else emptyList()
 
     val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
@@ -175,15 +184,24 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
             item {
                 Step(
                     number = 4,
-                    done = state.connectedMacs > 0,
+                    done = pairedMacs.isNotEmpty(),
                     title = "Pair your Mac",
                     body =
-                        if (state.connectedMacs > 0) {
-                            "Your Mac is connected."
-                        } else {
-                            "Pair this phone with your Mac in Bluetooth settings. The Mac connects when its tether-link helper runs."
+                        when {
+                            pairedMacs.isEmpty() -> "Pair this phone with your Mac once. Tap for step-by-step instructions."
+                            state.connectedMacs > 0 -> "Paired with ${pairedMacs.joinToString()} and connected now."
+                            else -> "Paired with ${pairedMacs.joinToString()}. Your Mac connects when its tether-link helper runs."
                         },
-                    action = null,
+                    details =
+                        "1. On your Mac, open System Settings → Bluetooth and leave it open, so the Mac stays discoverable.\n" +
+                            "2. On this phone, open Bluetooth settings → Pair new device, and pick your Mac.\n" +
+                            "3. Check that both screens show the same code, and confirm on both within 30 seconds. " +
+                            "If it times out, Android forgets the Mac, so just pair again.\n" +
+                            "4. Install the tether-link helper on your Mac (from the dots/tether-link flake). " +
+                            "Pairing also gives it the keys for the encrypted Bluetooth LE link, so there's no second prompt.",
+                    action =
+                        ("Bluetooth settings" to { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) })
+                            .takeIf { pairedMacs.isEmpty() },
                 )
             }
             item { SectionTitle("Hotspot") }
@@ -251,9 +269,32 @@ private fun SectionTitle(text: String) {
     )
 }
 
+/** Names of bonded devices whose Bluetooth class is a computer (the Macs this phone is paired with). */
+@SuppressLint("MissingPermission") // Only called once BLUETOOTH_CONNECT is granted.
+private fun pairedComputers(context: Context): List<String> =
+    context.getSystemService(BluetoothManager::class.java).adapter?.bondedDevices.orEmpty()
+        .filter { it.bluetoothClass?.majorDeviceClass == BluetoothClass.Device.Major.COMPUTER }
+        .map { it.name ?: it.address }
+
 @Composable
-private fun Step(number: Int, done: Boolean, title: String, body: String, action: Pair<String, () -> Unit>?) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+private fun Step(
+    number: Int,
+    done: Boolean,
+    title: String,
+    body: String,
+    action: Pair<String, () -> Unit>?,
+    details: String? = null,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Card(
+        onClick = { expanded = !expanded },
+        enabled = details != null,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            disabledContentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+    ) {
         ListItem(
             leadingContent = {
                 Surface(
@@ -272,5 +313,13 @@ private fun Step(number: Int, done: Boolean, title: String, body: String, action
             trailingContent = action?.let { (label, onClick) -> { FilledTonalButton(onClick = onClick) { Text(label) } } },
             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         )
+        AnimatedVisibility(visible = expanded && details != null) {
+            Text(
+                details.orEmpty(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 68.dp, end = 16.dp, bottom = 16.dp),
+            )
+        }
     }
 }

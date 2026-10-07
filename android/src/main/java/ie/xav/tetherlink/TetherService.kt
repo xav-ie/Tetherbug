@@ -175,9 +175,14 @@ class TetherService : Service() {
             notifySubscribers()
             return
         }
-        Privileged.setHotspot(cmd == CMD_ENABLE) { result ->
+        val enable = cmd == CMD_ENABLE
+        if (hotspot == (if (enable) HOTSPOT_ON else HOTSPOT_OFF)) return notifySubscribers()
+        Privileged.setHotspot(enable) { result ->
             if (result != 0) {
-                hotspot = HOTSPOT_FAILED
+                Log.w(TAG, "tethering ${if (enable) "start" else "stop"} failed: $result")
+                val actual = hotspotState(Privileged.apState(getSystemService(WifiManager::class.java)))
+                // Rejected but already in the requested state (e.g. a duplicate enable) isn't a failure.
+                hotspot = if (actual == (if (enable) HOTSPOT_ON else HOTSPOT_OFF)) actual else HOTSPOT_FAILED
                 notifySubscribers()
             }
         }

@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.WindowInsets
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Switch
@@ -21,6 +22,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        actionBar?.hide()
         status = TextView(this).apply { textSize = 16f }
         apple =
             Switch(this).apply {
@@ -33,7 +35,12 @@ class MainActivity : Activity() {
         setContentView(
             LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(48, 160, 48, 48)
+                // Edge-to-edge (targetSdk 35+): pad for the status and navigation bars.
+                setOnApplyWindowInsetsListener { view, insets ->
+                    val bars = insets.getInsets(WindowInsets.Type.systemBars())
+                    view.setPadding(48, bars.top + 48, 48, bars.bottom + 48)
+                    insets
+                }
                 addView(status)
                 addView(button("Set up permissions") { setUp() })
                 addView(button("Start service") { startForegroundService(Intent(context, TetherService::class.java)); refresh() })

@@ -38,6 +38,21 @@ nix run .#softap-ie -- clear   # remove the vendor elements again
 Restart the hotspot to apply. Needs an `adb` connection to the phone. The dex
 is built with JDK 17 and D8 from Google's R8 jar, no Android SDK required.
 
+## References
+
+- [Configure an access point as a personal hotspot](https://www.yichya.dev/configure-access-point-as-personal-hotspot/):
+  adding the Apple vendor element to an OpenWrt hostapd config makes macOS
+  treat the AP as a Personal Hotspot; the element used here comes from it.
+- [MikroTik forum: Apple personal hotspot vendor element](https://forum.mikrotik.com/viewtopic.php?t=199314):
+  the same trick on RouterOS.
+- [Android metered hotspots](https://www.lorier.net/docs/android-metered.html):
+  Android marks its hotspot metered via DHCP option 43 `ANDROID_METERED`,
+  which macOS ignores.
+- [`SoftApConfiguration.java`](https://android.googlesource.com/platform/packages/modules/Wifi/+/refs/heads/main/framework/java/android/net/wifi/SoftApConfiguration.java):
+  `Builder#setVendorElements` (Android 13+, `@SystemApi`).
+- [Apple Platform Security: Instant Hotspot](https://support.apple.com/guide/security/instant-hotspot-security-seca4b33e8c9/web):
+  why the Continuity "Personal Hotspot" section can't be reproduced.
+
 ## BLE protocol (draft)
 
 One primary service; characteristics require an encrypted, bonded link, so only

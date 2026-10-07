@@ -13,9 +13,10 @@ import android.bluetooth.BluetoothGattServer
 import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
-import android.bluetooth.le.AdvertiseCallback
+import android.bluetooth.le.AdvertisingSet
+import android.bluetooth.le.AdvertisingSetCallback
+import android.bluetooth.le.AdvertisingSetParameters
 import android.bluetooth.le.AdvertiseData
-import android.bluetooth.le.AdvertiseSettings
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -23,7 +24,9 @@ import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.ParcelUuid
 import android.telephony.TelephonyManager
 import android.util.Log
@@ -66,7 +69,13 @@ class TetherService : Service() {
     private val subscribers = mutableSetOf<BluetoothDevice>()
     private lateinit var gatt: BluetoothGattServer
     private lateinit var statusChar: BluetoothGattCharacteristic
+    private val connected = mutableSetOf<BluetoothDevice>()
+    private val handler = Handler(Looper.getMainLooper())
     private var hotspot = HOTSPOT_OFF
+        set(value) {
+            field = value
+            TetherState.update { it.copy(hotspot = value) }
+        }
     private var battery = 0
 
     private val receiver =
@@ -131,23 +140,46 @@ class TetherService : Service() {
             },
         )
 
+        TetherState.update { it.copy(running = true) }
+        startAdvertising()
+    }
+
+    private fun startAdvertising() {
         // ponytail: null while Bluetooth is off; advertising starts with the next service start.
-        val advertiser = manager.adapter.bluetoothLeAdvertiser ?: return Log.w(TAG, "Bluetooth is off; not advertising").let {}
-        advertiser.startAdvertising(
-            AdvertiseSettings.Builder()
-                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER)
+        val advertiser = getSystemService(BluetoothManager::class.java).adapter.bluetoothLeAdvertiser
+            ?: return Log.w(TAG, "Bluetooth is off; not advertising").let {}
+        TetherState.update { it.copy(advertising = false) }
+        advertiser.startAdvertisingSet(
+            AdvertisingSetParameters.Builder()
+                .setLegacyMode(true)
                 .setConnectable(true)
-                .setTimeout(0)
+                .setScannable(true)
+                .setInterval(AdvertisingSetParameters.INTERVAL_HIGH)
+                .setTxPowerLevel(AdvertisingSetParameters.TX_POWER_MEDIUM)
                 .build(),
             AdvertiseData.Builder().addServiceUuid(ParcelUuid(SERVICE)).build(),
+            null,
+            null,
+            null,
             advertiseCallback,
         )
+        // The stack can silently drop a request (seen right after a reinstall), so retry
+        // until it reports the set started.
+        handler.postDelayed({
+            if (!TetherState.snapshot.value.advertising) {
+                Log.w(TAG, "advertising didn't start; retrying")
+                advertiser.stopAdvertisingSet(advertiseCallback)
+                startAdvertising()
+            }
+        }, 5000)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_STICKY
 
     override fun onDestroy() {
-        getSystemService(BluetoothManager::class.java).adapter.bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
+        handler.removeCallbacksAndMessages(null)
+        getSystemService(BluetoothManager::class.java).adapter.bluetoothLeAdvertiser?.stopAdvertisingSet(advertiseCallback)
+        TetherState.update { TetherState.Snapshot() }
         gatt.close()
         unregisterReceiver(receiver)
         worker.shutdown()
@@ -192,6 +224,12 @@ class TetherService : Service() {
         object : BluetoothGattServerCallback() {
             override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
                 if (newState != BluetoothGatt.STATE_CONNECTED) synchronized(subscribers) { subscribers.remove(device) }
+                val count =
+                    synchronized(connected) {
+                        if (newState == BluetoothGatt.STATE_CONNECTED) connected.add(device) else connected.remove(device)
+                        connected.size
+                    }
+                TetherState.update { it.copy(connectedMacs = count) }
             }
 
             override fun onCharacteristicReadRequest(device: BluetoothDevice, requestId: Int, offset: Int, characteristic: BluetoothGattCharacteristic) {
@@ -241,9 +279,13 @@ class TetherService : Service() {
         }
 
     private val advertiseCallback =
-        object : AdvertiseCallback() {
-            override fun onStartFailure(errorCode: Int) {
-                Log.e(TAG, "advertising failed: $errorCode")
+        object : AdvertisingSetCallback() {
+            override fun onAdvertisingSetStarted(advertisingSet: AdvertisingSet?, txPower: Int, status: Int) {
+                if (status == ADVERTISE_SUCCESS) {
+                    TetherState.update { it.copy(advertising = true) }
+                } else {
+                    Log.e(TAG, "advertising failed: $status")
+                }
             }
         }
 

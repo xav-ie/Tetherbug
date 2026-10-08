@@ -164,7 +164,9 @@ private struct KeyboardFocusable: ViewModifier {
 
 private struct KeyboardNavigation: ViewModifier {
     static let space = "keyboard-navigation"
+    static let repeatInterval: TimeInterval = 0.15
     @ObservedObject var focus: KeyboardFocus
+    @State private var lastMove = Date.distantPast
     @FocusState private var windowFocused: Bool
 
     func body(content: Content) -> some View {
@@ -177,6 +179,9 @@ private struct KeyboardNavigation: ViewModifier {
             .onAppear { windowFocused = true }
             // macOS delivers Shift-Tab as its own back-tab character (U+0019), not as Tab with Shift.
             .onKeyPress(keys: [.tab, KeyEquivalent("\u{19}")], phases: [.down, .repeat]) { press in
+                // Holding Tab repeats at the system key-repeat rate; cap it so focus stays followable.
+                if press.phase == .repeat, Date().timeIntervalSince(lastMove) < Self.repeatInterval { return .handled }
+                lastMove = Date()
                 let back = press.key == KeyEquivalent("\u{19}") || press.modifiers.contains(.shift)
                 focus.move(by: back ? -1 : 1)
                 return .handled

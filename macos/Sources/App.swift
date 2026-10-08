@@ -240,7 +240,7 @@ struct PasswordRow: View {
             Button(shown ? "Hide" : "Show", action: toggleShown)
                 .buttonStyle(TextButtonStyle(palette: palette))
                 .keyboardFocusable(palette, radius: 4, action: toggleShown)
-            Button(copied ? "Copied" : "Copy", action: copy)
+            Button(copied ? "Copied!" : "Copy", action: copy)
                 .buttonStyle(TextButtonStyle(palette: palette))
                 .keyboardFocusable(palette, radius: 4, action: copy)
         }

@@ -138,7 +138,10 @@ private struct KeyboardFocusable: ViewModifier {
     @State private var id = UUID()
 
     func body(content: Content) -> some View {
-        content
+        // Refresh the stored action on every render: it closes over the current state (e.g. whether
+        // the hotspot is on), and a stale copy would repeat the first action on later key presses.
+        focus.entries[id]?.action = action
+        return content
             .background(GeometryReader { geometry in
                 let frame = geometry.frame(in: .named(KeyboardNavigation.space))
                 Color.clear

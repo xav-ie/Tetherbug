@@ -61,6 +61,7 @@ extension View {
                 // One soft drop shadow down-right; the site's own shadow tone vanishes on #12081a.
                 .compositingGroup()
                 .shadow(color: Color.black.opacity(0.45), radius: 10, x: 4, y: 6)
+                .accessibilityHidden(true)
         )
     }
 }
@@ -69,16 +70,21 @@ extension View {
 struct Card<Content: View>: View {
     let palette: Palette
     var title: String?
+    /// VoiceOver name for a card without a visible title.
+    var label: String?
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let title { Text(title).font(.custom("Palatino", size: 17).weight(.semibold)) }
+            if let title { Text(title).font(.custom("Palatino", size: 17).weight(.semibold)).accessibilityAddTraits(.isHeader) }
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .bubble(palette)
+        // One VoiceOver group per card: skim the sections, interact with one to reach its controls.
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(title ?? label ?? "")
     }
 }
 
@@ -310,6 +316,7 @@ struct WindowSurface: View {
                                startPoint: .topLeading, endPoint: .bottomTrailing),
                 lineWidth: 1.5))
             .overlay(shape.inset(by: 1.5).strokeBorder(Color.black.opacity(0.25), lineWidth: 1))
+            .accessibilityHidden(true)
     }
 }
 
@@ -384,6 +391,8 @@ struct WindowControls: View {
             control("minus", "Minimize") { NSApp.keyWindow?.miniaturize(nil) }
             control("xmark", "Close") { NSApp.keyWindow?.performClose(nil) }
         }
+        // Duplicates of Window → Minimize/Close (⌘M/⌘W), so VoiceOver skips them.
+        .accessibilityHidden(true)
     }
 
     private func control(_ symbol: String, _ help: String, action: @escaping () -> Void) -> some View {

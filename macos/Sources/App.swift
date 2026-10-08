@@ -107,7 +107,7 @@ struct ContentView: View {
             .padding(.top, 22)
             .background(WindowDragArea().padding(.horizontal, -18))
 
-            Card(palette: palette) { status(palette) }
+            Card(palette: palette, label: "Status") { status(palette) }
 
             Card(palette: palette, title: "Settings") {
                 Toggle("Ask for the hotspot when Wi-Fi drops", isOn: $model.onNoWifi)
@@ -140,6 +140,8 @@ struct ContentView: View {
                     .opacity(0.6)
             }
             .font(.callout)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Links")
         }
         .padding(.horizontal, 18)
         .padding(.bottom, 26)
@@ -189,7 +191,10 @@ struct ContentView: View {
                     Spacer()
                     Text(phone.ssid).font(.system(.body, design: .monospaced)).textSelection(.enabled)
                 }
-                .accessibilityElement(children: .combine)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Network")
+                .accessibilityValue(phone.ssid)
+                .accessibilityAddTraits(.isStaticText)
             }
             PasswordRow(model: model, palette: palette)
             // The phone's own cellular signal to its carrier, which limits the hotspot's speed.

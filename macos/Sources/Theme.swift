@@ -78,32 +78,118 @@ struct Card<Content: View>: View {
     }
 }
 
-/// Label on the left, a switch in the site's style pinned to the trailing edge: green track when on,
-/// bubble track when off, yellow knob. Drawn by hand so it doesn't go grey when the window loses focus.
+/// Keyboard focus like the site's `:focus-visible`: a 2pt foreground outline 2pt outside the control.
+/// Makes the control reachable with Tab (and Space/Return to activate) even without Full Keyboard Access.
+struct FocusRing: ViewModifier {
+    let palette: Palette
+    var radius: CGFloat = 8
+    @FocusState private var focused: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .focusable(interactions: .activate)
+            .focusEffectDisabled()
+            .focused($focused)
+            .overlay(
+                RoundedRectangle(cornerRadius: radius + 4, style: .continuous)
+                    .stroke(palette.foreground, lineWidth: 2)
+                    .padding(-4)
+                    .opacity(focused ? 1 : 0)
+            )
+    }
+}
+
+/// The site's theme-toggle look as an on/off switch: a sunken trough with a raised knob that is dim
+/// on the left when off and lit in the foreground colour on the right when on. Label on the left.
 struct TrailingSwitchStyle: ToggleStyle {
     let palette: Palette
-    @Environment(\.isEnabled) private var enabled
 
-    func makeBody(configuration: Configuration) -> some View {
+    func makeBody(configuration: Configuration) -> some View { SwitchRow(configuration: configuration, palette: palette) }
+}
+
+private struct SwitchRow: View {
+    let configuration: ToggleStyleConfiguration
+    let palette: Palette
+    @Environment(\.isEnabled) private var enabled
+    @State private var hovering = false
+
+    var body: some View {
         HStack {
             configuration.label
             Spacer()
-            ZStack(alignment: configuration.isOn ? .trailing : .leading) {
-                Capsule()
-                    .fill(configuration.isOn ? palette.alt : palette.surfaceBottom)
-                    .overlay(Capsule().strokeBorder(Color.white.opacity(0.1)))
-                    .frame(width: 42, height: 24)
-                Circle()
-                    .fill(palette.foreground)
-                    .shadow(color: .black.opacity(0.35), radius: 2, x: 1, y: 1)
-                    .frame(width: 18, height: 18)
-                    .padding(3)
+            Button {
+                withAnimation(.snappy(duration: 0.18)) { configuration.isOn.toggle() }
+            } label: {
+                ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                    Capsule()
+                        .fill(palette.surfaceBottom
+                            .shadow(.inner(color: palette.shadow, radius: 4, x: 3, y: 3))
+                            .shadow(.inner(color: palette.highlight, radius: 1.5, x: -1, y: -1)))
+                        .frame(width: 46, height: 26)
+                    Circle()
+                        .fill(configuration.isOn ? AnyShapeStyle(palette.foreground) : AnyShapeStyle(palette.surfaceTop))
+                        .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
+                        .shadow(color: .black.opacity(0.45), radius: 3, x: 2, y: 2)
+                        .frame(width: 20, height: 20)
+                        .padding(3)
+                        .opacity(configuration.isOn ? 1 : (hovering ? 0.65 : 0.38))
+                }
             }
+            .buttonStyle(.plain)
+            .modifier(FocusRing(palette: palette, radius: 13))
+            .onHover { hovering = $0 }
             .opacity(enabled ? 1 : 0.4)
-            .contentShape(Capsule())
-            .onTapGesture { withAnimation(.snappy(duration: 0.18)) { configuration.isOn.toggle() } }
-            .accessibilityAddTraits(.isButton)
         }
+        // VoiceOver sees a native switch with the row's label and on/off value.
+        .accessibilityRepresentation { Toggle(isOn: configuration.$isOn) { configuration.label } }
+    }
+}
+
+/// A link in the site's style: accent colour, underlined on hover, pointing-hand cursor, focus ring.
+struct SiteLink<Icon: View>: View {
+    let title: String
+    let url: URL
+    let palette: Palette
+    @ViewBuilder var icon: Icon
+    @State private var hovering = false
+
+    var body: some View {
+        Link(destination: url) {
+            Label { Text(title).underline(hovering) } icon: { icon }
+        }
+        .foregroundStyle(palette.alt)
+        .onHover { inside in
+            hovering = inside
+            inside ? NSCursor.pointingHand.push() : NSCursor.pop()
+        }
+        .modifier(FocusRing(palette: palette, radius: 4))
+    }
+}
+
+extension SiteLink where Icon == EmptyView {
+    init(_ title: String, url: URL, palette: Palette) {
+        self.init(title: title, url: url, palette: palette) { EmptyView() }
+    }
+}
+
+/// Plain text buttons in the accent colour, underlined on hover (Show, Copy).
+struct TextButtonStyle: ButtonStyle {
+    let palette: Palette
+
+    func makeBody(configuration: Configuration) -> some View { TextButtonLabel(configuration: configuration, palette: palette) }
+}
+
+private struct TextButtonLabel: View {
+    let configuration: ButtonStyleConfiguration
+    let palette: Palette
+    @State private var hovering = false
+
+    var body: some View {
+        configuration.label
+            .foregroundStyle(palette.alt)
+            .underline(hovering)
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .onHover { hovering = $0 }
     }
 }
 
@@ -119,12 +205,28 @@ struct WindowControls: View {
     }
 
     private func control(_ symbol: String, _ help: String, action: @escaping () -> Void) -> some View {
+        WindowControl(symbol: symbol, help: help, palette: palette, action: action)
+    }
+}
+
+private struct WindowControl: View {
+    let symbol: String
+    let help: String
+    let palette: Palette
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: 10, weight: .bold)).frame(width: 26, height: 26)
         }
         .buttonStyle(.plain)
         .foregroundStyle(palette.foreground)
+        .opacity(hovering ? 1 : 0.7)
         .bubble(palette, radius: 13)
+        .onHover { hovering = $0 }
+        .modifier(FocusRing(palette: palette, radius: 13))
         .help(help)
+        .accessibilityLabel(help)
     }
 }

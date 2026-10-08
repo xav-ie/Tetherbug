@@ -99,6 +99,7 @@ struct ContentView: View {
                 }
                 Spacer()
                 PathShape.buddy.fill(palette.foreground, style: FillStyle(eoFill: true)).frame(width: 96, height: 60)
+                    .accessibilityHidden(true)
                 WindowControls(palette: palette)
             }
 
@@ -121,22 +122,15 @@ struct ContentView: View {
                 Text("Show your phone's hotspot state and battery in the bar, and turn the hotspot on with a click.")
                     .opacity(0.75)
                     .fixedSize(horizontal: false, vertical: true)
-                Link("Add TetherLink to SketchyBar →", destination: Links.sketchybar).foregroundStyle(palette.alt)
+                SiteLink("Add TetherLink to SketchyBar →", url: Links.sketchybar, palette: palette)
             }
 
             HStack(spacing: 16) {
-                Group {
-                    Link(destination: Links.setup) { Label("Setup guide", systemImage: "book.closed") }
-                    Link(destination: Links.releases) { Label("Phone app", systemImage: "smartphone") }
-                    Link(destination: Links.repo) {
-                        Label {
-                            Text("GitHub")
-                        } icon: {
-                            PathShape.github.fill(style: FillStyle(eoFill: true)).frame(width: 13, height: 13)
-                        }
-                    }
+                SiteLink(title: "Setup guide", url: Links.setup, palette: palette) { Image(systemName: "book.closed") }
+                SiteLink(title: "Phone app", url: Links.releases, palette: palette) { Image(systemName: "smartphone") }
+                SiteLink(title: "GitHub", url: Links.repo, palette: palette) {
+                    PathShape.github.fill(style: FillStyle(eoFill: true)).frame(width: 13, height: 13)
                 }
-                .foregroundStyle(palette.alt)
                 Spacer()
                 Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
                     .opacity(0.6)
@@ -162,17 +156,22 @@ struct ContentView: View {
                     get: { phone.hotspot == .on || phone.hotspot == .starting },
                     set: { model.send($0 ? "enable" : "disable") }
                 )) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Hotspot")
-                        Text(phone.ssid.isEmpty ? phone.hotspot.rawValue.capitalized : "Network: \(phone.ssid)")
-                            .font(.caption).opacity(0.7)
-                    }
+                    // Off and on are clear from the switch; only the in-between states need words.
+                    Text(phone.hotspot == .starting ? "Hotspot (starting…)" : phone.hotspot == .failed ? "Hotspot (failed)" : "Hotspot")
                 }
                 // Only switchable once the phone has reported its state and says it can switch it.
                 .disabled(!phone.controllable || phone.hotspot == .starting)
                 if !phone.controllable {
                     Text("Shizuku isn't ready on your phone, so it can't switch the hotspot. Open TetherLink there.")
                         .font(.caption).opacity(0.7)
+                }
+                if !phone.ssid.isEmpty {
+                    HStack {
+                        Text("Network")
+                        Spacer()
+                        Text(phone.ssid).font(.system(.body, design: .monospaced)).textSelection(.enabled)
+                    }
+                    .accessibilityElement(children: .combine)
                 }
                 PasswordRow(model: model, palette: palette)
                 // The phone's own cellular signal to its carrier, which limits the hotspot's speed.
@@ -183,7 +182,7 @@ struct ContentView: View {
                 Label("Looking for your phone…", systemImage: "antenna.radiowaves.left.and.right")
                 Text("Make sure TetherLink is running on your phone and it's paired with this Mac.")
                     .font(.caption).opacity(0.7)
-                Link("How to pair", destination: Links.pairing).font(.caption).foregroundStyle(palette.alt)
+                SiteLink("How to pair", url: Links.pairing, palette: palette).font(.caption)
             }
         } else {
             Label("The background agent isn't running", systemImage: "moon.zzz")
@@ -203,6 +202,7 @@ struct PasswordRow: View {
             Text("Password")
             Spacer()
             Text(shown ? (model.password ?? "…") : "••••••••").font(.system(.body, design: .monospaced)).textSelection(.enabled)
+                .accessibilityLabel(shown ? (model.password ?? "loading") : "hidden")
             Group {
                 Button(shown ? "Hide" : "Show") {
                     if !shown { model.fetchPassword() }
@@ -218,8 +218,8 @@ struct PasswordRow: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(palette.alt)
+            .buttonStyle(TextButtonStyle(palette: palette))
+            .modifier(FocusRing(palette: palette, radius: 4))
         }
     }
 }

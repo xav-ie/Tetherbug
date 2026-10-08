@@ -17,7 +17,7 @@ from shapely.ops import unary_union
 ROOT = Path(__file__).resolve().parent.parent
 RES = ROOT / "android/src/main/res"
 LINK = 14  # half the link stroke (28)
-FACE = 9   # half the face stroke (18)
+FACE = 7.5  # half the face stroke (15; heavier reads too bold light-on-dark)
 GAP = 10   # link-crossing gap; the eye keeps the same clearance from the head outline
 RES_PTS = 48  # points per quarter circle when sampling curves
 
@@ -57,8 +57,9 @@ antennae = [
 # Legs: rectangle + semicircle, sides meeting the body square-on.
 legs = [box(x - 17, 360, x + 17, 376 + 20 - 17).union(Point(x, 376 + 20 - 17).buffer(17, quad_segs=RES_PTS)) for x in (252, 302, 352)]
 
-# Happy eye: a ^ whose peak sits GAP below the head's inner top edge (y 252).
-ey = 252 + GAP + 16 + FACE
+# Happy eye: a ^ whose peak sits GAP (plus a small optical drop) below the head's inner top edge (y 252).
+EYE_DROP = 4
+ey = 252 + GAP + 16 + FACE + EYE_DROP
 eye = stroke([(322, ey), (338, ey - 16), (354, ey)], FACE)
 # Mouth: anchored in the head stroke's centreline, leaves the inner edge flat, curls up 50 degrees.
 my, mr = 330, 34
@@ -99,21 +100,35 @@ def vector(size_dp, extent, color, name):
 
 # Adaptive icon: 108dp canvas, everything inside the 66dp safe circle.
 vector(108, 66, "@color/icon_fg", "ic_launcher_foreground.xml")
+# System-colour variant: fill follows the wallpaper palette (see icon_colors.xml).
+vector(108, 66, "@color/icon_system_fg", "ic_launcher_foreground_system.xml")
 # Status-bar icon: white silhouette, tinted by the system.
 vector(24, 23, "#FFFFFFFF", "ic_stat_tether.xml")
 
+# Two launcher icons, picked at runtime by enabling one of two activity aliases: the purple
+# colourway and one built from the wallpaper's dynamic colours.
 (RES / "mipmap-anydpi").mkdir(parents=True, exist_ok=True)
-(RES / "mipmap-anydpi" / "ic_launcher.xml").write_text(
-    '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
-    '    <background android:drawable="@color/icon_bg" />\n'
-    '    <foreground android:drawable="@drawable/ic_launcher_foreground" />\n'
-    '    <monochrome android:drawable="@drawable/ic_launcher_foreground" />\n'
-    '</adaptive-icon>\n'
-)
-for folder, bg, fg in (("values", "#FFDCE3F5", "#FF2B3A67"), ("values-night", "#FF2B3A67", "#FFDCE3F5")):
+for name, bg, fg in (("ic_launcher", "icon_bg", "ic_launcher_foreground"), ("ic_launcher_system", "icon_system_bg", "ic_launcher_foreground_system")):
+    (RES / "mipmap-anydpi" / f"{name}.xml").write_text(
+        '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
+        f'    <background android:drawable="@color/{bg}" />\n'
+        f'    <foreground android:drawable="@drawable/{fg}" />\n'
+        '    <monochrome android:drawable="@drawable/ic_launcher_foreground" />\n'
+        '</adaptive-icon>\n'
+    )
+# xav.ie's palette (src/styles/global.css): the purple and the yellow from its dark theme.
+BG, FG = "#281336", "#FFF17B"
+# The system colourway uses the wallpaper's accent tones: light container with dark ink by day,
+# flipped at night.
+for folder, sys_bg, sys_fg in (("values", "system_accent1_100", "system_accent1_700"), ("values-night", "system_accent1_800", "system_accent1_100")):
     (RES / folder).mkdir(parents=True, exist_ok=True)
     (RES / folder / "icon_colors.xml").write_text(
-        f'<resources>\n    <color name="icon_bg">{bg}</color>\n    <color name="icon_fg">{fg}</color>\n</resources>\n'
+        "<resources>\n"
+        f'    <color name="icon_bg">#FF{BG[1:]}</color>\n'
+        f'    <color name="icon_fg">#FF{FG[1:]}</color>\n'
+        f'    <color name="icon_system_bg">@android:color/{sys_bg}</color>\n'
+        f'    <color name="icon_system_fg">@android:color/{sys_fg}</color>\n'
+        "</resources>\n"
     )
 
 # Preview for the README: what a launcher shows (the middle 72dp of the 108dp canvas, masked
@@ -121,7 +136,7 @@ for folder, bg, fg in (("values", "#FFDCE3F5", "#FF2B3A67"), ("values-night", "#
 scale = 512 * 66 / 72 / math.hypot(maxx - minx, maxy - miny)
 d = path_data(shape, scale, 256 - cx * scale, 256 - cy * scale)
 (ROOT / "design/icon.svg").write_text(
-    f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><circle cx="256" cy="256" r="256" fill="#DCE3F5"/>'
-    f'<path fill-rule="evenodd" fill="#2B3A67" d="{d}"/></svg>\n'
+    f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><circle cx="256" cy="256" r="256" fill="{BG}"/>'
+    f'<path fill-rule="evenodd" fill="{FG}" d="{d}"/></svg>\n'
 )
 print(f"bounds {shape.bounds}, {len(d)} chars of path data")

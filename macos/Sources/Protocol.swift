@@ -6,6 +6,7 @@ enum Gatt {
     static let service = CBUUID(string: "1581bac4-33fe-43a8-b97f-5dd7a01f48c9")
     static let status = CBUUID(string: "90766fca-8a24-43ae-8501-3dcef06a8479")
     static let command = CBUUID(string: "e036426f-6317-487d-8777-e6f6d91f8a4d")
+    static let credentials = CBUUID(string: "355534b0-7222-480b-aa18-02a6c30feea2")
     static let enable: UInt8 = 0x01
     static let disable: UInt8 = 0x02
 }
@@ -18,15 +19,18 @@ struct PhoneStatus: Codable, Equatable {
     var battery: Int
     var signal: Int
     var ssid: String
+    /// The phone can switch its hotspot (Shizuku is ready). Version 1 phones don't say; assume yes.
+    var controllable: Bool
 
-    /// `version u8, hotspot u8, battery u8, signal u8, ssid utf-8...`
+    /// v1: `version, hotspot, battery, signal, ssid...`; v2 adds `flags` (bit 0: controllable) before the ssid.
     init?(_ data: Data) {
         let b = [UInt8](data)
-        guard b.count >= 4, b[0] == 1 else { return nil }
+        guard b.count >= 4, b[0] == 1 || (b[0] == 2 && b.count >= 5) else { return nil }
         hotspot = [.off, .starting, .on, .failed][Int(min(b[1], 3))]
         battery = Int(b[2])
         signal = Int(b[3])
-        ssid = String(decoding: b[4...], as: UTF8.self)
+        controllable = b[0] == 1 || b[4] & 1 != 0
+        ssid = String(decoding: b[(b[0] == 1 ? 4 : 5)...], as: UTF8.self)
     }
 }
 
@@ -38,6 +42,8 @@ struct AgentState: Codable, Equatable {
     var status: PhoneStatus?
     var wifiOffline = false
     var lastRequest: String?
+    /// Only filled in the reply to an explicit `password` request, never in the `watch` stream.
+    var password: String?
 }
 
 /// Settings shared by the app, agent and CLI. An explicit domain keeps it the same however the

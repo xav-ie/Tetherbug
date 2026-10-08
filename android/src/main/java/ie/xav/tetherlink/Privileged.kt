@@ -89,6 +89,12 @@ internal object Privileged {
         return config.javaClass.getMethod("getWifiSsid").invoke(config)?.toString()?.removeSurrounding("\"")
     }
 
+    /** The hotspot's passphrase (empty for an open network). */
+    fun passphrase(): String {
+        val config = softApConfig(service("wifi", WIFI_MANAGER))
+        return config.javaClass.getMethod("getPassphrase").invoke(config) as String? ?: ""
+    }
+
     fun hasAppleIe(): Boolean {
         val config = softApConfig(service("wifi", WIFI_MANAGER))
         @Suppress("UNCHECKED_CAST")

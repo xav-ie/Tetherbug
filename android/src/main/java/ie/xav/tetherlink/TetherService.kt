@@ -45,9 +45,11 @@ class TetherService : Service() {
         val SERVICE: UUID = UUID.fromString("1581bac4-33fe-43a8-b97f-5dd7a01f48c9")
         val STATUS: UUID = UUID.fromString("90766fca-8a24-43ae-8501-3dcef06a8479")
         val COMMAND: UUID = UUID.fromString("e036426f-6317-487d-8777-e6f6d91f8a4d")
+        val CREDENTIALS: UUID = UUID.fromString("355534b0-7222-480b-aa18-02a6c30feea2")
         private val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
-        private const val PROTOCOL_VERSION: Byte = 1
+        private const val PROTOCOL_VERSION: Byte = 2
+        private const val FLAG_CONTROLLABLE = 1
         private const val CMD_ENABLE: Byte = 0x01
         private const val CMD_DISABLE: Byte = 0x02
 
@@ -133,10 +135,18 @@ class TetherService : Service() {
                 BluetoothGattCharacteristic.PROPERTY_WRITE,
                 BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED,
             )
+        // The hotspot password, so the Mac can show it; like everything else, only over a bonded, encrypted link.
+        val credentialsChar =
+            BluetoothGattCharacteristic(
+                CREDENTIALS,
+                BluetoothGattCharacteristic.PROPERTY_READ,
+                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED,
+            )
         gatt.addService(
             BluetoothGattService(SERVICE, BluetoothGattService.SERVICE_TYPE_PRIMARY).apply {
                 addCharacteristic(statusChar)
                 addCharacteristic(commandChar)
+                addCharacteristic(credentialsChar)
             },
         )
 
@@ -189,7 +199,8 @@ class TetherService : Service() {
     private fun status(): ByteArray {
         val signal = getSystemService(TelephonyManager::class.java).signalStrength?.level ?: 0
         val ssid = runCatching { Privileged.ssid() }.getOrNull().orEmpty()
-        return byteArrayOf(PROTOCOL_VERSION, hotspot, battery.toByte(), signal.toByte()) + ssid.toByteArray()
+        val flags = if (Privileged.isReady()) FLAG_CONTROLLABLE else 0
+        return byteArrayOf(PROTOCOL_VERSION, hotspot, battery.toByte(), signal.toByte(), flags.toByte()) + ssid.toByteArray()
     }
 
     private fun notifySubscribers() {
@@ -234,14 +245,19 @@ class TetherService : Service() {
 
             override fun onCharacteristicReadRequest(device: BluetoothDevice, requestId: Int, offset: Int, characteristic: BluetoothGattCharacteristic) {
                 worker.execute {
-                    val value = status()
-                    val ok = characteristic.uuid == STATUS && offset <= value.size
+                    val value =
+                        when (characteristic.uuid) {
+                            STATUS -> status()
+                            CREDENTIALS -> runCatching { Privileged.passphrase() }.getOrDefault("").toByteArray()
+                            else -> null
+                        }
+                    val ok = value != null && offset <= value.size
                     gatt.sendResponse(
                         device,
                         requestId,
                         if (ok) BluetoothGatt.GATT_SUCCESS else BluetoothGatt.GATT_FAILURE,
                         offset,
-                        if (ok) value.copyOfRange(offset, value.size) else null,
+                        if (ok) value!!.copyOfRange(offset, value.size) else null,
                     )
                 }
             }

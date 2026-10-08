@@ -9,6 +9,8 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     private var central: CBCentralManager!
     private var phone: CBPeripheral?
     private var command: CBCharacteristic?
+    private var credentials: CBCharacteristic?
+    private var password: String? // kept in memory only
     private var server: SocketServer!
     private let wifi = NWPathMonitor(requiredInterfaceType: .wifi)
     private var offlineSince: Date?
@@ -42,6 +44,10 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         switch line {
         case "enable": request(true, reason: "manual")
         case "disable": request(false, reason: "manual")
+        case "password":
+            var reply = state
+            reply.password = password
+            return reply
         default: break
         }
         return state
@@ -128,6 +134,7 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         log("disconnected: \(error?.localizedDescription ?? "no error")")
         state.connected = false
         command = nil
+        credentials = nil
         // A pending connect has no timeout: the link comes back as soon as the phone is in range.
         central.connect(peripheral)
     }
@@ -139,7 +146,7 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard let service = peripheral.services?.first(where: { $0.uuid == Gatt.service }) else { return }
-        peripheral.discoverCharacteristics([Gatt.status, Gatt.command], for: service)
+        peripheral.discoverCharacteristics([Gatt.status, Gatt.command, Gatt.credentials], for: service)
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
@@ -150,14 +157,23 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 peripheral.setNotifyValue(true, for: characteristic)
             case Gatt.command:
                 command = characteristic
+            case Gatt.credentials:
+                credentials = characteristic
+                peripheral.readValue(for: characteristic)
             default: break
             }
         }
     }
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        if let error { return log("status read failed: \(error.localizedDescription)") }
+        if let error { return log("read failed: \(error.localizedDescription)") }
+        if characteristic.uuid == Gatt.credentials, let value = characteristic.value {
+            password = String(decoding: value, as: UTF8.self)
+            return
+        }
         guard characteristic.uuid == Gatt.status, let value = characteristic.value, let status = PhoneStatus(value) else { return }
+        // Re-read the password whenever the hotspot comes on, in case it was changed on the phone.
+        if status.hotspot == .on, state.status?.hotspot != .on, let credentials { peripheral.readValue(for: credentials) }
         state.status = status
         tick()
     }

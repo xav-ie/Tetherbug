@@ -37,7 +37,7 @@ sequenceDiagram
     participant Shizuku
     end
     Note over Mac,Phone: Wi-Fi disconnected
-    Mac->>Mac: wait 5 s for a known network
+    Note over Mac,Phone: wait 5 s for a known network
     Mac->>Phone: enable (encrypted BLE write)
     Phone->>Shizuku: start tethering
     Shizuku-->>Phone: hotspot on

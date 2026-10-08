@@ -5,16 +5,18 @@ import SwiftUI
 struct Palette {
     let background, foreground, alt: Color
     let surfaceTop, surfaceBottom, shadow, highlight: Color
+    /// The foreground mixed 55% into the background, for "on" switch tracks.
+    let mutedForeground: Color
 
     static func current(_ scheme: ColorScheme) -> Palette {
         // --background / --foreground / --alt, with the color-mix() derived tones precomputed.
         scheme == .dark
             ? Palette(background: rgb(0x12081A), foreground: rgb(0xFFF17B), alt: rgb(0x51D136),
                       surfaceTop: rgb(0x210F2E), surfaceBottom: rgb(0x110718),
-                      shadow: rgb(0x100717), highlight: rgb(0x413948))
+                      shadow: rgb(0x100717), highlight: rgb(0x413948), mutedForeground: rgb(0x7D7146))
             : Palette(background: rgb(0xBEBDB6), foreground: rgb(0x281336), alt: rgb(0x257015),
                       surfaceTop: rgb(0xC3C2BC), surfaceBottom: rgb(0xB3B2AB),
-                      shadow: rgb(0xA7A6A0), highlight: rgb(0xCBCAC5))
+                      shadow: rgb(0xA7A6A0), highlight: rgb(0xCBCAC5), mutedForeground: rgb(0x7A707C))
     }
 
     private static func rgb(_ hex: Int) -> Color {
@@ -121,18 +123,23 @@ private struct SwitchRow: View {
                 withAnimation(.snappy(duration: 0.18)) { configuration.isOn.toggle() }
             } label: {
                 ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                    // Sunken trough; muted yellow when on.
                     Capsule()
-                        .fill(palette.surfaceBottom
-                            .shadow(.inner(color: palette.shadow, radius: 4, x: 3, y: 3))
+                        .fill((configuration.isOn ? palette.mutedForeground : palette.surfaceBottom)
+                            .shadow(.inner(color: .black.opacity(0.45), radius: 4, x: 3, y: 3))
                             .shadow(.inner(color: palette.highlight, radius: 1.5, x: -1, y: -1)))
                         .frame(width: 46, height: 26)
+                    // Raised purple knob with a light top-left rim and a dark bottom-right edge.
                     Circle()
-                        .fill(configuration.isOn ? AnyShapeStyle(palette.foreground) : AnyShapeStyle(palette.surfaceTop))
-                        .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
-                        .shadow(color: .black.opacity(0.45), radius: 3, x: 2, y: 2)
+                        .fill(LinearGradient(colors: [palette.surfaceTop, palette.surfaceBottom],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .overlay(Circle().strokeBorder(
+                            LinearGradient(colors: [Color.white.opacity(hovering ? 0.45 : 0.3), .clear, Color.black.opacity(0.4)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing),
+                            lineWidth: 1.2))
+                        .shadow(color: .black.opacity(0.55), radius: 2.5, x: 1.5, y: 2)
                         .frame(width: 20, height: 20)
                         .padding(3)
-                        .opacity(configuration.isOn ? 1 : (hovering ? 0.65 : 0.38))
                 }
             }
             .buttonStyle(.plain)

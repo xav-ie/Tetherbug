@@ -4,7 +4,7 @@
   <rect width="720" height="240" rx="24" fill="#12081a"/>
   <rect x="36" y="98" width="84" height="54" rx="6" fill="#281336" stroke="#fff17b" stroke-width="2.2"/>
   <path d="M71 98 h14 v3 a2.5 2.5 0 0 1 -2.5 2.5 h-9 a2.5 2.5 0 0 1 -2.5 -2.5 z" fill="#fff17b"/>
-  <path d="M26 154 H130" stroke="#fff17b" stroke-width="4" stroke-linecap="round"/>
+  <path d="M36 152 H120 L130 156.5 a2.5 2.5 0 0 1 -2.5 2.5 H28.5 a2.5 2.5 0 0 1 -2.5 -2.5 Z" fill="#fff17b"/>
   <text x="78" y="190" text-anchor="middle" fill="#fff17b" font-size="12" font-weight="400" opacity="0.8">Mac</text>
   <path d="M134 126 H214" fill="none" stroke="#fff17b" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
   <text x="174" y="116" text-anchor="middle" fill="#51d136" font-size="12" font-weight="400" opacity="1">BLE</text>

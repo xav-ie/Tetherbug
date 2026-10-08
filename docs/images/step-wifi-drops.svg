@@ -2,7 +2,7 @@
   <title>Step 2: when Wi-Fi stays down for 5 seconds the Mac asks the phone for its hotspot, and turns it off again once it is back on Wi-Fi</title>
   <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#fff17b"/></marker></defs>
   <rect width="600" height="220" rx="24" fill="#12081a"/>
-  <g opacity="1"><rect x="40" y="64" width="120" height="76" rx="8" fill="#281336" stroke="#fff17b" stroke-width="2.5"/>
+  <g opacity="1"><rect x="40" y="64" width="120" height="76" rx="8" fill="#281336" stroke="#fff17b" stroke-width="2.5"/><path d="M90 64 h20 v4 a3 3 0 0 1 -3 3 h-14 a3 3 0 0 1 -3 -3 z" fill="#fff17b"/>
   <path d="M26 150 H174" stroke="#fff17b" stroke-width="5" stroke-linecap="round"/></g>
   <circle cx="100" cy="108" r="3.5" fill="#fff17b"/>
   <path d="M92.5 101.4 A10 10 0 0 1 107.5 101.4" fill="none" stroke="#fff17b" stroke-width="2.5" stroke-linecap="round"/>
@@ -17,7 +17,7 @@
   <path d="M290 102 H436" stroke="#fff17b" stroke-width="2" marker-end="url(#arrow)"/>
   <text x="363" y="92" text-anchor="middle" fill="#fff17b" font-size="14" font-weight="600" opacity="1">enable</text>
   <rect x="456" y="46" width="64" height="112" rx="12" fill="#281336" stroke="#fff17b" stroke-width="2.5"/>
-  <line x1="480" y1="56" x2="496" y2="56" stroke="#fff17b" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="488" cy="58" r="4" fill="#fff17b"/>
   <text x="488" y="184" text-anchor="middle" fill="#fff17b" font-size="13" font-weight="400" opacity="0.8">Phone</text>
   <text x="363" y="202" text-anchor="middle" fill="#51d136" font-size="12" font-weight="400" opacity="1">back on regular Wi-Fi → disable</text>
 </svg>

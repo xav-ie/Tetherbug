@@ -10,6 +10,8 @@
 | `design/` | the icon: `icon-source.svg` (editable) and `icon.py`, which generates every shipped icon asset |
 | `docs/` | [Mac](macos.md) and [SketchyBar](sketchybar.md) guides, this page, the [BLE protocol](protocol.md) |
 
+## Building
+
 Everything builds from the repository root, in the flake's dev shell (JDK 21 and the Android SDK).
 
 ```sh

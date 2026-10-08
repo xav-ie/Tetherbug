@@ -164,7 +164,7 @@ private struct KeyboardFocusable: ViewModifier {
 
 private struct KeyboardNavigation: ViewModifier {
     static let space = "keyboard-navigation"
-    static let repeatInterval: TimeInterval = 0.15
+    static let repeatInterval: TimeInterval = 0.1
     @ObservedObject var focus: KeyboardFocus
     @State private var lastMove = Date.distantPast
     @FocusState private var windowFocused: Bool

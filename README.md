@@ -31,21 +31,21 @@ usual hotspot auto-join rules.
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Helvetica, Arial, sans-serif', 'primaryColor': '#281336', 'primaryTextColor': '#fff17b', 'primaryBorderColor': '#fff17b', 'lineColor': '#fff17b', 'textColor': '#fff17b', 'clusterBkg': '#12081a', 'clusterBorder': '#51d136', 'titleColor': '#51d136', 'edgeLabelBackground': '#12081a', 'actorBkg': '#281336', 'actorBorder': '#fff17b', 'actorTextColor': '#fff17b', 'actorLineColor': '#fff17b', 'signalColor': '#fff17b', 'signalTextColor': '#fff17b', 'noteBkgColor': '#281336', 'noteTextColor': '#51d136', 'noteBorderColor': '#51d136'}}}%%
 sequenceDiagram
+    box rgb(18, 8, 26)
     participant Mac as Mac agent
     participant Phone as Android app
     participant Shizuku
-    rect rgb(18, 8, 26)
-        Note over Mac: Wi-Fi disconnected
-        Mac->>Mac: wait 5 s for macOS to rejoin a known network
-        Mac->>Phone: enable (encrypted BLE write)
-        Phone->>Shizuku: start tethering
-        Shizuku-->>Phone: hotspot on
-        Phone-->>Mac: status: on, ssid "My Hotspot"
-        Note over Mac: macOS auto-joins the hotspot as a Personal Hotspot
-        Note over Mac: later: back on regular Wi-Fi
-        Mac->>Phone: disable
-        Phone->>Shizuku: stop tethering
     end
+    Note over Mac,Phone: Wi-Fi disconnected
+    Mac->>Mac: wait 5 s for a known network
+    Mac->>Phone: enable (encrypted BLE write)
+    Phone->>Shizuku: start tethering
+    Shizuku-->>Phone: hotspot on
+    Phone-->>Mac: status: on, ssid "My Hotspot"
+    Note over Mac,Phone: macOS joins it as a Personal Hotspot
+    Note over Mac,Phone: later: back on regular Wi-Fi
+    Mac->>Phone: disable
+    Phone->>Shizuku: stop tethering
 ```
 
 ### The pieces

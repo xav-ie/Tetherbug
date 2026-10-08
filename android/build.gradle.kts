@@ -3,6 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.10"
 }
 
+// Release signing comes from the environment (CI decodes the keystore from repo secrets); without
+// it, release builds fall back to the debug key so they still build locally.
+val releaseKeystore: String? = System.getenv("TETHER_KEYSTORE")
+
 android {
     namespace = "ie.xav.tetherlink"
     compileSdk = 37
@@ -12,8 +16,29 @@ android {
         // SoftApConfiguration.Builder#setVendorElements is Android 13+.
         minSdk = 33
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        // Set from the release tag in CI: -PversionName=0.1.0 -PversionCode=100.
+        versionCode = (findProperty("versionCode") as String?)?.toInt() ?: 1
+        versionName = findProperty("versionName") as String? ?: "0.0.0-dev"
+    }
+
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("TETHER_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("TETHER_KEY_ALIAS")
+                keyPassword = System.getenv("TETHER_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+        }
     }
 
     buildFeatures {

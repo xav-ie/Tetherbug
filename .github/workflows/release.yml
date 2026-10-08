@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Build signed release APK
+        working-directory: android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.TETHER_KEYSTORE_BASE64 }}
+          TETHER_KEYSTORE_PASSWORD: ${{ secrets.TETHER_KEYSTORE_PASSWORD }}
+          TETHER_KEY_ALIAS: ${{ secrets.TETHER_KEY_ALIAS }}
+          TETHER_KEY_PASSWORD: ${{ secrets.TETHER_KEY_PASSWORD }}
+        run: |
+          [ -n "$KEYSTORE_BASE64" ] || { echo "TETHER_KEYSTORE_BASE64 secret is missing"; exit 1; }
+          export TETHER_KEYSTORE="$RUNNER_TEMP/release.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$TETHER_KEYSTORE"
+          version="${GITHUB_REF_NAME#v}"
+          IFS=. read -r major minor patch <<< "${version%%-*}"
+          code=$((major * 10000 + minor * 100 + patch))
+          nix develop .. --command ./gradlew assembleRelease --no-daemon -PversionName="$version" -PversionCode="$code"
+          mv build/outputs/apk/release/tether-link-release.apk "$RUNNER_TEMP/tether-link-$GITHUB_REF_NAME.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: ${{ runner.temp }}/tether-link-*.apk
+
+  release:
+    needs: [android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes

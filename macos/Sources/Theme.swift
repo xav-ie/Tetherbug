@@ -418,6 +418,6 @@ private struct WindowControl: View {
         .onHover { hovering = $0 }
         .keyboardFocusable(palette, radius: 13, action: action)
         .help(help)
-        .accessibilityLabel(help)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { WindowButton.frames[help] = $0 }
     }
 }

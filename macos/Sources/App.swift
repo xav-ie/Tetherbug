@@ -44,7 +44,12 @@ final class AgentModel: ObservableObject {
                     DispatchQueue.main.async { self?.state = state }
                     return true
                 }
-                if !connected { DispatchQueue.main.async { self?.state = nil } }
+                if !connected {
+                    DispatchQueue.main.async {
+                        self?.state = nil
+                        self?.startSessionAgent()
+                    }
+                }
                 Thread.sleep(forTimeInterval: 1)
             }
         }
@@ -66,9 +71,38 @@ final class AgentModel: ObservableObject {
         DispatchQueue.global().async { SocketClient.request(command) { _ in false } }
     }
 
+    /// An agent the window runs while it's open, when nothing else does (the login item is off and no
+    /// launchd job or script started one).
+    private var sessionAgent: Process?
+
+    private func startSessionAgent() {
+        guard loginItem != .enabled, sessionAgent?.isRunning != true else { return }
+        let process = Process()
+        process.executableURL = Bundle.main.executableURL
+        process.arguments = ["agent"]
+        do {
+            try process.run()
+            sessionAgent = process
+        } catch {
+            log("couldn't start the agent: \(error.localizedDescription)")
+        }
+    }
+
+    func stopSessionAgent() {
+        sessionAgent?.terminate()
+        // Let it release the socket, or the login item's agent would find it and step aside.
+        sessionAgent?.waitUntilExit()
+        sessionAgent = nil
+    }
+
     func setLoginItem(_ on: Bool) {
         do {
-            if on { try agent.register() } else { try agent.unregister() }
+            if on {
+                stopSessionAgent()
+                try agent.register()
+            } else {
+                try agent.unregister()
+            }
         } catch {
             log("login item: \(error.localizedDescription)")
         }
@@ -263,6 +297,43 @@ final class AppWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
     override func performClose(_ sender: Any?) { close() }
+
+    // VoiceOver gets real window buttons in place of the drawn bubbles, which it doesn't see.
+    private lazy var minimizeButton = WindowButton("Minimize", subrole: .minimizeButton, window: self) { [weak self] in self?.miniaturize(nil) }
+    private lazy var closeButton = WindowButton("Close", subrole: .closeButton, window: self) { [weak self] in self?.close() }
+    override func accessibilityChildren() -> [Any]? { [minimizeButton, closeButton] + (super.accessibilityChildren() ?? []) }
+    override func accessibilityMinimizeButton() -> Any? { minimizeButton }
+    override func accessibilityCloseButton() -> Any? { closeButton }
+}
+
+/// A window button for VoiceOver, placed over its drawn bubble (WindowControl reports the frame).
+final class WindowButton: NSAccessibilityElement {
+    /// SwiftUI frames of the drawn bubbles by label, in window coordinates with a top-left origin.
+    static var frames: [String: CGRect] = [:]
+    private let label: String
+    private weak var window: NSWindow?
+    private let press: () -> Void
+
+    init(_ label: String, subrole: NSAccessibility.Subrole, window: NSWindow, press: @escaping () -> Void) {
+        self.label = label
+        self.window = window
+        self.press = press
+        super.init()
+        setAccessibilityRole(.button)
+        setAccessibilitySubrole(subrole)
+        setAccessibilityLabel(label)
+        setAccessibilityParent(window)
+    }
+
+    override func accessibilityFrame() -> NSRect {
+        guard let window, let content = window.contentView, let f = Self.frames[label] else { return .zero }
+        return window.convertToScreen(NSRect(x: f.minX, y: content.bounds.height - f.maxY, width: f.width, height: f.height))
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        press()
+        return true
+    }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -315,6 +386,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // Closing the window quits the app; the background agent keeps running on its own.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    func applicationWillTerminate(_ notification: Notification) { model.stopSessionAgent() }
 }
 
 func runApp() -> Never {

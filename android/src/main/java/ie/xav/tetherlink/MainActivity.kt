@@ -1,5 +1,14 @@
 package ie.xav.tetherlink
 
+import androidx.compose.material3.Icon
+
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.layout.offset
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.googlefonts.GoogleFont
@@ -168,9 +177,9 @@ private val PurpleLight =
     )
 
 /** xav.ie's bubble surface tones: background mixed 6% toward white (top) and black (bottom). */
-private data class SiteSurfaces(val top: Color, val bottom: Color)
-private val SurfacesDark = SiteSurfaces(Color(0xFF210F2E), Color(0xFF110718))
-private val SurfacesLight = SiteSurfaces(Color(0xFFC3C2BC), Color(0xFFB3B2AB))
+private data class SiteSurfaces(val top: Color, val bottom: Color, val onTrack: Color, val offTrack: Color)
+private val SurfacesDark = SiteSurfaces(Color(0xFF210F2E), Color(0xFF110718), Color(0xFF4A2A63), Color(0xFF24132F))
+private val SurfacesLight = SiteSurfaces(Color(0xFFC3C2BC), Color(0xFFB3B2AB), Color(0xFF9E8AAF), Color(0xFFA9A8A1))
 
 /** xav.ie's heading face, fetched through Google Fonts' downloadable-font provider (nothing bundled). */
 private val HeadingFont =
@@ -212,6 +221,40 @@ private fun SiteCard(onClick: (() -> Unit)? = null, content: @Composable ColumnS
 /** The app title's font: the site's heading face with the Default theme, Material's otherwise. */
 @Composable
 private fun titleFont() = if (LocalSiteSurfaces.current != null) HeadingFont else null
+
+/**
+ * A switch: Material's with System colors; with the Default theme, the Mac app's look — a sunken
+ * trough (brighter purple when on) with a raised purple knob, lit top-left and shaded bottom-right.
+ */
+@Composable
+private fun SiteSwitch(checked: Boolean, enabled: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val surfaces = LocalSiteSurfaces.current
+    if (surfaces == null) {
+        Switch(checked = checked, enabled = enabled, onCheckedChange = onCheckedChange)
+        return
+    }
+    val knobOffset by animateDpAsState(if (checked) 22.dp else 0.dp, label = "knob")
+    Box(
+        Modifier
+            .size(width = 52.dp, height = 30.dp)
+            .alpha(if (enabled) 1f else 0.4f)
+            .clip(CircleShape)
+            .background(if (checked) surfaces.onTrack else surfaces.offTrack)
+            // Inset shadow: dark from the top-left, a faint highlight back from the bottom-right.
+            .background(Brush.linearGradient(listOf(Color.Black.copy(alpha = 0.45f), Color.Transparent, Color.White.copy(alpha = 0.06f))))
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
+            .padding(4.dp),
+    ) {
+        Box(
+            Modifier
+                .offset(x = knobOffset)
+                .size(22.dp)
+                .shadow(3.dp, CircleShape, ambientColor = Color.Black, spotColor = Color.Black)
+                .background(Brush.linearGradient(listOf(surfaces.top, surfaces.bottom)), CircleShape)
+                .border(1.5.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.6f), Color.Transparent, Color.Black.copy(alpha = 0.6f))), CircleShape),
+        )
+    }
+}
 
 /** List rows inside a card: transparent on the bubble surface, tonal otherwise. */
 @Composable
@@ -375,7 +418,7 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
                             )
                         },
                         trailingContent = {
-                            Switch(
+                            SiteSwitch(
                                 checked = appleIe,
                                 enabled = shizukuReady,
                                 onCheckedChange = {
@@ -435,9 +478,9 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
             item {
                 SiteCard {
                     Column {
-                        ResourceRow("Set up the Mac app", "Install TetherLink on your Mac and pair it") { uri.openUri(Links.MAC_SETUP) }
-                        ResourceRow("Get TetherLink for Mac", "Downloads on the releases page") { uri.openUri(Links.RELEASES) }
-                        ResourceRow("Source code on GitHub", "xav-ie/TetherLink") { uri.openUri(Links.REPO) }
+                        ResourceRow(R.drawable.ic_book, "Set up the Mac app", "Install TetherLink on your Mac and pair it") { uri.openUri(Links.MAC_SETUP) }
+                        ResourceRow(R.drawable.ic_laptop_mac, "Get TetherLink for Mac", "Downloads on the releases page") { uri.openUri(Links.RELEASES) }
+                        ResourceRow(R.drawable.ic_github, "Source code on GitHub", "xav-ie/TetherLink") { uri.openUri(Links.REPO) }
                     }
                 }
             }
@@ -485,8 +528,9 @@ private fun Buddy(modifier: Modifier) {
 }
 
 @Composable
-private fun ResourceRow(title: String, subtitle: String, onClick: () -> Unit) {
+private fun ResourceRow(icon: Int, title: String, subtitle: String, onClick: () -> Unit) {
     ListItem(
+        leadingContent = { Icon(painterResource(icon), contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
         headlineContent = { Text(title) },
         supportingContent = { Text(subtitle) },
         trailingContent = { Text("↗", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary) },
@@ -497,6 +541,44 @@ private fun ResourceRow(title: String, subtitle: String, onClick: () -> Unit) {
 
 @Composable
 private fun <T> Choice(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
+    val surfaces = LocalSiteSurfaces.current
+    if (surfaces != null) {
+        // xav.ie's theme toggle: a sunken pill trough; the selected option sits on a raised bubble.
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(CircleShape)
+                .background(surfaces.offTrack)
+                .background(Brush.linearGradient(listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent, Color.White.copy(alpha = 0.05f))))
+                .selectableGroup()
+                .padding(4.dp),
+        ) {
+            options.forEach { (value, label) ->
+                val isSelected = value == selected
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(40.dp)
+                        .then(
+                            if (isSelected) {
+                                Modifier
+                                    .shadow(4.dp, CircleShape, ambientColor = Color.Black, spotColor = Color.Black)
+                                    .background(Brush.linearGradient(listOf(surfaces.top, surfaces.bottom)), CircleShape)
+                                    .border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.35f), Color.Transparent, Color.Black.copy(alpha = 0.45f))), CircleShape)
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .clip(CircleShape)
+                        .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onSelect(value) }),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(label, modifier = Modifier.alpha(if (isSelected) 1f else 0.45f))
+                }
+            }
+        }
+        return
+    }
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
         options.forEachIndexed { i, (value, label) ->
             SegmentedButton(
@@ -520,9 +602,10 @@ private fun hotspotLabel(state: Byte) =
 private fun SectionTitle(text: String) {
     Text(
         text,
-        style = MaterialTheme.typography.titleSmall,
+        style = MaterialTheme.typography.titleLarge,
+        fontFamily = titleFont(),
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 4.dp, top = 8.dp),
+        modifier = Modifier.padding(start = 4.dp, top = 16.dp),
     )
 }
 

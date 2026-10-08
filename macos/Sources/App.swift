@@ -103,6 +103,9 @@ struct ContentView: View {
                     .accessibilityHidden(true)
                 WindowControls(palette: palette)
             }
+            // The header (and the band above it) is the window's drag handle.
+            .padding(.top, 22)
+            .background(WindowDragArea().padding(.horizontal, -18))
 
             Card(palette: palette) { status(palette) }
 
@@ -139,7 +142,6 @@ struct ContentView: View {
             .font(.callout)
         }
         .padding(.horizontal, 18)
-        .padding(.top, 22)
         .padding(.bottom, 26)
         .frame(width: 500)
         .foregroundStyle(palette.foreground)
@@ -252,7 +254,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.title = "TetherLink"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
+        window.isMovableByWindowBackground = false
         for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
             window.standardWindowButton(button)?.isHidden = true
         }

@@ -7,16 +7,18 @@ struct Palette {
     let surfaceTop, surfaceBottom, shadow, highlight: Color
     /// A brighter purple for "on" switch tracks.
     let onTrack: Color
+    /// The off switch trough: a little brighter than the card so it reads against it.
+    let offTrack: Color
 
     static func current(_ scheme: ColorScheme) -> Palette {
         // --background / --foreground / --alt, with the color-mix() derived tones precomputed.
         scheme == .dark
             ? Palette(background: rgb(0x12081A), foreground: rgb(0xFFF17B), alt: rgb(0x51D136),
                       surfaceTop: rgb(0x210F2E), surfaceBottom: rgb(0x110718),
-                      shadow: rgb(0x100717), highlight: rgb(0x413948), onTrack: rgb(0x4A2A63))
+                      shadow: rgb(0x100717), highlight: rgb(0x413948), onTrack: rgb(0x4A2A63), offTrack: rgb(0x24132F))
             : Palette(background: rgb(0xBEBDB6), foreground: rgb(0x281336), alt: rgb(0x257015),
                       surfaceTop: rgb(0xC3C2BC), surfaceBottom: rgb(0xB3B2AB),
-                      shadow: rgb(0xA7A6A0), highlight: rgb(0xCBCAC5), onTrack: rgb(0x9E8AAF))
+                      shadow: rgb(0xA7A6A0), highlight: rgb(0xCBCAC5), onTrack: rgb(0x9E8AAF), offTrack: rgb(0xA9A8A1))
     }
 
     private static func rgb(_ hex: Int) -> Color {
@@ -203,7 +205,7 @@ private struct SwitchRow: View {
                 ZStack(alignment: configuration.isOn ? .trailing : .leading) {
                     // Sunken trough; a brighter purple when on.
                     Capsule()
-                        .fill((configuration.isOn ? palette.onTrack : palette.surfaceBottom)
+                        .fill((configuration.isOn ? palette.onTrack : palette.offTrack)
                             .shadow(.inner(color: .black.opacity(0.45), radius: 4, x: 3, y: 3))
                             .shadow(.inner(color: palette.highlight, radius: 1.5, x: -1, y: -1)))
                         .frame(width: 46, height: 26)
@@ -279,6 +281,17 @@ private struct TextButtonLabel: View {
             .underline(hovering)
             .opacity(configuration.isPressed ? 0.6 : 1)
             .onHover { hovering = $0 }
+    }
+}
+
+/// Makes the view it backs a handle for moving the window (the window itself isn't draggable by its
+/// background, so only the header moves it).
+struct WindowDragArea: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { DragView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    private final class DragView: NSView {
+        override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
     }
 }
 

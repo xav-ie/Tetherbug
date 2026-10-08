@@ -290,11 +290,11 @@ class TetherService : Service() {
         }
 
     private fun notification(): Notification {
-        val channel = NotificationChannel("service", "tether-link", NotificationManager.IMPORTANCE_MIN)
+        val channel = NotificationChannel("service", "TetherLink", NotificationManager.IMPORTANCE_MIN)
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         return Notification.Builder(this, channel.id)
             .setSmallIcon(R.drawable.ic_stat_tether)
-            .setContentTitle("tether-link")
+            .setContentTitle("TetherLink")
             .setContentText("Ready to share the hotspot with your Mac")
             .setOngoing(true)
             .build()

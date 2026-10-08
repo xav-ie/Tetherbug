@@ -1,5 +1,8 @@
 package ie.xav.tetherlink
 
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.darkColorScheme
@@ -106,6 +109,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private object Links {
+    const val REPO = "https://github.com/xav-ie/tether-link"
+    const val MAC_SETUP = "$REPO/blob/main/docs/macos.md"
+    const val RELEASES = "$REPO/releases"
+}
+
 internal val PERMISSIONS =
     arrayOf(Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.POST_NOTIFICATIONS)
 
@@ -163,6 +172,7 @@ private fun Theme(style: ThemeStyle, content: @Composable () -> Unit) {
 @Composable
 private fun SetupScreen(tick: Int, refresh: () -> Unit) {
     val context = LocalContext.current
+    val uri = LocalUriHandler.current
     val state by TetherState.snapshot.collectAsState()
     val requestPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { refresh() }
 
@@ -194,7 +204,7 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
                     modifier = Modifier.padding(top = 24.dp, bottom = 8.dp, start = 4.dp),
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("tether-link", style = MaterialTheme.typography.displaySmall)
+                        Text("TetherLink", style = MaterialTheme.typography.displaySmall)
                         Text("Instant Hotspot for your Mac", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Buddy(Modifier.height(80.dp))
@@ -261,15 +271,16 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
                         when {
                             pairedMacs.isEmpty() -> "Pair this phone with your Mac once. Tap for step-by-step instructions."
                             state.connectedMacs > 0 -> "Paired with ${pairedMacs.joinToString()} and connected now."
-                            else -> "Paired with ${pairedMacs.joinToString()}. Your Mac connects when its tether-link helper runs."
+                            else -> "Paired with ${pairedMacs.joinToString()}. Your Mac connects when its TetherLink app runs."
                         },
                     details =
                         "1. On your Mac, open System Settings → Bluetooth and leave it open, so the Mac stays discoverable.\n" +
                             "2. On this phone, open Bluetooth settings → Pair new device, and pick your Mac.\n" +
                             "3. Check that both screens show the same code, and confirm on both within 30 seconds. " +
                             "If it times out, Android forgets the Mac, so just pair again.\n" +
-                            "4. Install the tether-link helper on your Mac (from the dots/tether-link flake). " +
-                            "Pairing also gives it the keys for the encrypted Bluetooth LE link, so there's no second prompt.",
+                            "4. Install TetherLink on your Mac. Pairing also gives it the keys for the encrypted " +
+                            "Bluetooth LE link, so there's no second prompt.",
+                    detailsLink = "Mac setup guide" to { uri.openUri(Links.MAC_SETUP) },
                     action =
                         ("Bluetooth settings" to { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) })
                             .takeIf { pairedMacs.isEmpty() },
@@ -344,6 +355,25 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
                     }
                 }
             }
+            item { SectionTitle("Resources") }
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                    Column {
+                        ResourceRow("Set up the Mac app", "Install TetherLink on your Mac and pair it") { uri.openUri(Links.MAC_SETUP) }
+                        ResourceRow("Get TetherLink for Mac", "Downloads on the releases page") { uri.openUri(Links.RELEASES) }
+                        ResourceRow("Source code on GitHub", "xav-ie/tether-link") { uri.openUri(Links.REPO) }
+                    }
+                }
+            }
+            item {
+                Text(
+                    "Version ${context.packageManager.getPackageInfo(context.packageName, 0).versionName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
         // Sticky compact bar once the big header has scrolled away.
         AnimatedVisibility(
@@ -356,7 +386,7 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth().statusBarsPadding().height(64.dp).padding(horizontal = 20.dp),
                 ) {
-                    Text("tether-link", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    Text("TetherLink", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                     Buddy(Modifier.height(36.dp))
                 }
             }
@@ -375,6 +405,17 @@ private fun Buddy(modifier: Modifier) {
         // The drawable is square; crop to the creature's own aspect so it fills the height.
         contentScale = ContentScale.Crop,
         modifier = modifier.aspectRatio(1.6f),
+    )
+}
+
+@Composable
+private fun ResourceRow(title: String, subtitle: String, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(subtitle) },
+        trailingContent = { Text("↗", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = Modifier.clickable(onClick = onClick),
     )
 }
 
@@ -424,6 +465,7 @@ private fun Step(
     body: String,
     action: Pair<String, () -> Unit>?,
     details: String? = null,
+    detailsLink: Pair<String, () -> Unit>? = null,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Card(
@@ -454,12 +496,10 @@ private fun Step(
             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         )
         AnimatedVisibility(visible = expanded && details != null) {
-            Text(
-                details.orEmpty(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 68.dp, end = 16.dp, bottom = 16.dp),
-            )
+            Column(Modifier.padding(start = 68.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(details.orEmpty(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                detailsLink?.let { (label, onClick) -> FilledTonalButton(onClick = onClick) { Text(label) } }
+            }
         }
     }
 }

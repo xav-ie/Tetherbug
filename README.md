@@ -1,6 +1,6 @@
-<img align="right" src="design/icon.svg" width="120" alt="tether-link icon: an inchworm made of two interlocked chain links">
+<img align="right" src="design/icon.svg" width="120" alt="TetherLink icon: an inchworm made of two interlocked chain links">
 
-# tether-link
+# TetherLink
 
 Apple's Instant Hotspot, for an Android phone and a Mac. The phone runs a
 Bluetooth LE service; the Mac asks it to turn its hotspot on when there's no

@@ -1,4 +1,5 @@
 import AppKit
+import CoreBluetooth
 import ServiceManagement
 import SwiftUI
 
@@ -81,6 +82,7 @@ enum Links {
     static let repo = URL(string: "https://github.com/xav-ie/TetherLink")!
     static let setup = URL(string: "https://github.com/xav-ie/TetherLink/blob/main/docs/macos.md")!
     static let pairing = URL(string: "https://github.com/xav-ie/TetherLink/blob/main/docs/macos.md#2-pair-the-phone-with-your-mac")!
+    static let bluetoothSettings = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth")!
     static let sketchybar = URL(string: "https://github.com/xav-ie/TetherLink/blob/main/docs/sketchybar.md")!
     static let releases = URL(string: "https://github.com/xav-ie/TetherLink/releases")!
 }
@@ -162,6 +164,10 @@ struct ContentView: View {
                 Label("\(state.phone ?? "Phone") is connected", systemImage: "iphone.radiowaves.left.and.right").font(.headline)
             } else if state.bluetooth != "on" {
                 Label("Bluetooth is \(state.bluetooth)", systemImage: "exclamationmark.triangle").font(.headline)
+                if state.bluetooth == "unauthorized" {
+                    Text("Allow TetherLink under Privacy & Security → Bluetooth.").font(.caption).opacity(0.7)
+                    SiteLink("Open Bluetooth settings →", url: Links.bluetoothSettings, palette: palette)
+                }
             } else {
                 Label("Looking for your phone…", systemImage: "antenna.radiowaves.left.and.right").font(.headline)
             }
@@ -262,6 +268,13 @@ final class AppWindow: NSWindow {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow!
     private let model = AgentModel()
+    private var bluetooth: CBCentralManager?
+
+    /// macOS never shows the windowless agent the Bluetooth prompt, so ask from the window: the agent
+    /// is the same app and shares the grant. Only an active app may prompt.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        if bluetooth == nil, CBManager.authorization == .notDetermined { bluetooth = CBCentralManager(delegate: nil, queue: nil) }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Content fills the whole window; the themed view draws its own close/minimise controls.

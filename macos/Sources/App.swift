@@ -68,88 +68,93 @@ enum Links {
 
 struct ContentView: View {
     @ObservedObject var model: AgentModel
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack(alignment: .center) {
+        let palette = Palette.current(scheme)
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .center, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("TetherLink").font(.largeTitle.weight(.semibold))
-                    Text("Instant Hotspot for your Mac").foregroundStyle(.secondary)
+                    Text("TetherLink").font(.custom("Palatino", size: 34).weight(.semibold))
+                    Text("Instant Hotspot for your Mac").opacity(0.75)
                 }
                 Spacer()
-                Buddy().fill(Color.accentColor, style: FillStyle(eoFill: true)).frame(width: 96, height: 60)
+                Buddy().fill(palette.foreground, style: FillStyle(eoFill: true)).frame(width: 96, height: 60)
             }
 
-            GroupBox { status.frame(maxWidth: .infinity, alignment: .leading).padding(6) }
+            Card(palette: palette) { status(palette) }
 
-            HStack {
-                Button("Turn hotspot on") { model.send("enable") }.keyboardShortcut(.defaultAction)
+            HStack(spacing: 12) {
+                Button("Turn hotspot on") { model.send("enable") }
+                    .buttonStyle(BubbleButtonStyle(palette: palette, primary: true))
+                    .keyboardShortcut(.defaultAction)
                 Button("Turn hotspot off") { model.send("disable") }
+                    .buttonStyle(BubbleButtonStyle(palette: palette))
             }
             .disabled(!(model.state?.connected ?? false))
 
-            GroupBox("Settings") {
-                VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Ask for the hotspot when Wi-Fi drops", isOn: $model.onNoWifi)
-                    Toggle("Turn it off when back on regular Wi-Fi", isOn: $model.disableWhenBack)
-                    Toggle("Run in the background", isOn: Binding(
-                        get: { model.loginItem == .enabled },
-                        set: { model.setLoginItem($0) }
-                    ))
-                    Text("Starts at login and keeps working when this window is closed.")
-                        .font(.caption).foregroundStyle(.secondary)
-                    if model.loginItem == .requiresApproval {
-                        Text("Allow TetherLink under System Settings → General → Login Items.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
+            Card(palette: palette, title: "Settings") {
+                Toggle("Ask for the hotspot when Wi-Fi drops", isOn: $model.onNoWifi)
+                Toggle("Turn it off when back on regular Wi-Fi", isOn: $model.disableWhenBack)
+                Toggle("Run in the background", isOn: Binding(
+                    get: { model.loginItem == .enabled },
+                    set: { model.setLoginItem($0) }
+                ))
+                Text("Starts at login and keeps working when this window is closed.").font(.caption).opacity(0.7)
+                if model.loginItem == .requiresApproval {
+                    Text("Allow TetherLink under System Settings → General → Login Items.").font(.caption).opacity(0.7)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(6)
             }
 
-            GroupBox {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Using SketchyBar?").font(.headline)
-                    Text("Show your phone's hotspot state and battery in the bar, and turn the hotspot on with a click.")
-                        .foregroundStyle(.secondary)
-                    Link("Add TetherLink to SketchyBar →", destination: Links.sketchybar)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(6)
+            Card(palette: palette, title: "Using SketchyBar?") {
+                Text("Show your phone's hotspot state and battery in the bar, and turn the hotspot on with a click.")
+                    .opacity(0.75)
+                    .fixedSize(horizontal: false, vertical: true)
+                Link("Add TetherLink to SketchyBar →", destination: Links.sketchybar).foregroundStyle(palette.alt)
             }
 
             HStack(spacing: 16) {
-                Link("Setup guide", destination: Links.setup)
-                Link("Get the phone app", destination: Links.releases)
-                Link("GitHub", destination: Links.repo)
+                Group {
+                    Link("Setup guide", destination: Links.setup)
+                    Link("Get the phone app", destination: Links.releases)
+                    Link("GitHub", destination: Links.repo)
+                }
+                .foregroundStyle(palette.alt)
                 Spacer()
                 Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
-                    .foregroundStyle(.secondary)
+                    .opacity(0.6)
             }
             .font(.callout)
         }
-        .padding(24)
-        .frame(width: 480)
+        .padding(.horizontal, 28)
+        .padding(.top, 44)
+        .padding(.bottom, 26)
+        .frame(width: 500)
+        .foregroundStyle(palette.foreground)
+        .tint(palette.alt)
+        .toggleStyle(.switch)
+        .background(palette.background.overlay(Image(nsImage: noise).resizable(resizingMode: .tile)).ignoresSafeArea())
+        .overlay(alignment: .topTrailing) { WindowControls(palette: palette).padding(14) }
     }
 
-    @ViewBuilder private var status: some View {
+    @ViewBuilder private func status(_ palette: Palette) -> some View {
         if let state = model.state {
             if state.connected, let phone = state.status {
                 Label("\(state.phone ?? "Phone") is connected", systemImage: "iphone.radiowaves.left.and.right")
                     .font(.headline)
                 Text("Hotspot \(phone.hotspot.rawValue)\(phone.ssid.isEmpty ? "" : " · \(phone.ssid)")")
-                Text("Battery \(phone.battery)% · Signal \(phone.signal)/4").foregroundStyle(.secondary)
+                Text("Battery \(phone.battery)% · Signal \(phone.signal)/4").opacity(0.7)
             } else if state.bluetooth != "on" {
                 Label("Bluetooth is \(state.bluetooth)", systemImage: "exclamationmark.triangle")
             } else {
                 Label("Looking for your phone…", systemImage: "antenna.radiowaves.left.and.right")
                 Text("Make sure TetherLink is running on your phone and it's paired with this Mac.")
-                    .font(.caption).foregroundStyle(.secondary)
-                Link("How to pair", destination: Links.pairing).font(.caption)
+                    .font(.caption).opacity(0.7)
+                Link("How to pair", destination: Links.pairing).font(.caption).foregroundStyle(palette.alt)
             }
         } else {
             Label("The background agent isn't running", systemImage: "moon.zzz")
-            Text("Turn on “Run in the background” below to start it.").font(.caption).foregroundStyle(.secondary)
+            Text("Turn on “Run in the background” below to start it.").font(.caption).opacity(0.7)
         }
     }
 }
@@ -159,18 +164,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let model = AgentModel()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Content fills the whole window; the themed view draws its own close/minimise controls.
         window = NSWindow(
             contentRect: .zero,
-            styleMask: [.titled, .closable, .miniaturizable],
+            styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = "TetherLink"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = true
+        for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+            window.standardWindowButton(button)?.isHidden = true
+        }
+        NSApp.mainMenu = mainMenu()
         window.contentView = NSHostingView(rootView: ContentView(model: model))
         window.setContentSize(window.contentView!.fittingSize)
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Keeps ⌘W, ⌘M and ⌘Q working without the standard window buttons.
+    private func mainMenu() -> NSMenu {
+        let menu = NSMenu()
+        let appItem = NSMenuItem()
+        appItem.submenu = NSMenu()
+        appItem.submenu!.addItem(withTitle: "Quit TetherLink", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let windowItem = NSMenuItem()
+        windowItem.submenu = NSMenu(title: "Window")
+        windowItem.submenu!.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windowItem.submenu!.addItem(withTitle: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
+        menu.addItem(appItem)
+        menu.addItem(windowItem)
+        return menu
     }
 
     // Closing the window quits the app; the background agent keeps running on its own.

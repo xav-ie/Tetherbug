@@ -7,7 +7,7 @@ a `tether-link` command-line tool.
 ## 1. Set up the phone
 
 Install the TetherLink Android app from the
-[releases page](https://github.com/xav-ie/tether-link/releases), then follow its setup checklist:
+[releases page](https://github.com/xav-ie/TetherLink/releases), then follow its setup checklist:
 Bluetooth and notification permissions, [Shizuku](https://shizuku.rikka.app) (hotspot control needs
 system rights), and start the service.
 
@@ -51,7 +51,7 @@ Using SketchyBar? See [TetherLink in SketchyBar](sketchybar.md).
 Needs the Xcode command line tools.
 
 ```sh
-git clone https://github.com/xav-ie/tether-link
-tether-link/macos/build.sh ~/Applications
+git clone https://github.com/xav-ie/TetherLink
+TetherLink/macos/build.sh ~/Applications
 open ~/Applications/TetherLink.app
 ```

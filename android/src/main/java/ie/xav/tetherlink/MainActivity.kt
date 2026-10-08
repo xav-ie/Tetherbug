@@ -110,7 +110,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private object Links {
-    const val REPO = "https://github.com/xav-ie/tether-link"
+    const val REPO = "https://github.com/xav-ie/TetherLink"
     const val MAC_SETUP = "$REPO/blob/main/docs/macos.md"
     const val RELEASES = "$REPO/releases"
 }
@@ -361,7 +361,7 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
                     Column {
                         ResourceRow("Set up the Mac app", "Install TetherLink on your Mac and pair it") { uri.openUri(Links.MAC_SETUP) }
                         ResourceRow("Get TetherLink for Mac", "Downloads on the releases page") { uri.openUri(Links.RELEASES) }
-                        ResourceRow("Source code on GitHub", "xav-ie/tether-link") { uri.openUri(Links.REPO) }
+                        ResourceRow("Source code on GitHub", "xav-ie/TetherLink") { uri.openUri(Links.REPO) }
                     }
                 }
             }

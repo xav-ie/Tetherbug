@@ -59,11 +59,11 @@ final class AgentModel: ObservableObject {
 }
 
 enum Links {
-    static let repo = URL(string: "https://github.com/xav-ie/tether-link")!
-    static let setup = URL(string: "https://github.com/xav-ie/tether-link/blob/main/docs/macos.md")!
-    static let pairing = URL(string: "https://github.com/xav-ie/tether-link/blob/main/docs/macos.md#2-pair-the-phone-with-your-mac")!
-    static let sketchybar = URL(string: "https://github.com/xav-ie/tether-link/blob/main/docs/sketchybar.md")!
-    static let releases = URL(string: "https://github.com/xav-ie/tether-link/releases")!
+    static let repo = URL(string: "https://github.com/xav-ie/TetherLink")!
+    static let setup = URL(string: "https://github.com/xav-ie/TetherLink/blob/main/docs/macos.md")!
+    static let pairing = URL(string: "https://github.com/xav-ie/TetherLink/blob/main/docs/macos.md#2-pair-the-phone-with-your-mac")!
+    static let sketchybar = URL(string: "https://github.com/xav-ie/TetherLink/blob/main/docs/sketchybar.md")!
+    static let releases = URL(string: "https://github.com/xav-ie/TetherLink/releases")!
 }
 
 struct ContentView: View {

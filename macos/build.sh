@@ -26,6 +26,11 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Library/LaunchAgents"
 lipo -create "$work"/TetherLink-* -output "$app/Contents/MacOS/TetherLink"
 
+# App icon, rendered by the binary itself from the generated buddy outline (no raster assets in git).
+mkdir -p "$app/Contents/Resources"
+"$app/Contents/MacOS/TetherLink" render-icon "$work/AppIcon.iconset"
+iconutil -c icns "$work/AppIcon.iconset" -o "$app/Contents/Resources/AppIcon.icns"
+
 cat > "$app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -35,6 +40,7 @@ cat > "$app/Contents/Info.plist" <<EOF
   <key>CFBundleName</key><string>TetherLink</string>
   <key>CFBundleDisplayName</key><string>TetherLink</string>
   <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleShortVersionString</key><string>$version</string>
   <key>CFBundleVersion</key><string>$version</string>
   <key>LSMinimumSystemVersion</key><string>$min_macos</string>
@@ -51,7 +57,7 @@ cat > "$app/Contents/Library/LaunchAgents/ie.xav.tetherlink.agent.plist" <<EOF
   <key>BundleProgram</key><string>Contents/MacOS/TetherLink</string>
   <key>ProgramArguments</key><array><string>TetherLink</string><string>agent</string></array>
   <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
 </dict></plist>
 EOF
 

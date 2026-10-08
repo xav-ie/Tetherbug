@@ -20,6 +20,12 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
 
     func run() {
+        // One agent per user: a second copy (a login item plus a manual run, say) must not take the
+        // socket from the first. A clean exit isn't restarted by launchd (KeepAlive SuccessfulExit=false).
+        if SocketClient.request("status", onState: { _ in false }) {
+            log("another agent is already running; exiting")
+            exit(0)
+        }
         server = SocketServer(path: Socket.path) { [weak self] line in self?.handle(line) }
         central = CBCentralManager(delegate: self, queue: .main)
         wifi.pathUpdateHandler = { [weak self] path in DispatchQueue.main.async { self?.wifiChanged(path) } }

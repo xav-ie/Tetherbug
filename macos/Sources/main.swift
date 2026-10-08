@@ -42,10 +42,12 @@ case "agent":
     Agent().run()
 case "status", "enable", "disable", "watch":
     cli(args.first!, json: args.contains("--json"))
+case "render-icon": // internal: build.sh renders the app icon with this
+    renderIconset(to: args.dropFirst().first ?? "AppIcon.iconset")
 case "-h", "--help", "help":
     print(usage)
 case nil:
-    print(usage) // the app window comes next
+    runApp()
 default:
     FileHandle.standardError.write("\(usage)\n".data(using: .utf8)!)
     exit(2)

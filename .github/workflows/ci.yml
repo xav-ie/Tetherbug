@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
+      pull-requests: read # paths-filter lists a PR's files through the API
     outputs:
       android: ${{ steps.filter.outputs.android }}
       macos: ${{ steps.filter.outputs.macos }}

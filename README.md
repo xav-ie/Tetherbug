@@ -1,3 +1,5 @@
+<img align="right" src="design/icon.svg" width="120" alt="tether-link icon: an inchworm made of two interlocked chain links">
+
 # tether-link
 
 Apple's Instant Hotspot, for an Android phone and a Mac. The phone runs a
@@ -10,8 +12,9 @@ treats it as a Personal Hotspot.
 | Path | What | Status |
 | --- | --- | --- |
 | `cli/softap-ie` | `softap-ie show\|apple\|clear` over `adb` | done |
-| `android/` | foreground service: BLE GATT server, hotspot control via Shizuku | planned |
+| `android/` | foreground service: BLE GATT server, hotspot control via Shizuku | done |
 | `macos/` | `tether-link` CoreBluetooth helper + sketchybar item | planned |
+| `design/` | icon: `icon-source.svg` (editable), `icon.py` (generates the app's vector drawables and `icon.svg`) | done |
 
 ## How macOS recognises a Personal Hotspot
 

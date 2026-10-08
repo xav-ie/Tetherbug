@@ -293,7 +293,7 @@ class TetherService : Service() {
         val channel = NotificationChannel("service", "tether-link", NotificationManager.IMPORTANCE_MIN)
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         return Notification.Builder(this, channel.id)
-            .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
+            .setSmallIcon(R.drawable.ic_stat_tether)
             .setContentTitle("tether-link")
             .setContentText("Ready to share the hotspot with your Mac")
             .setOngoing(true)

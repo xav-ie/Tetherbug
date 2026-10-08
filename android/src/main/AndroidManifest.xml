@@ -9,7 +9,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:icon="@android:drawable/stat_sys_data_bluetooth"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:label="tether-link">
 
         <activity

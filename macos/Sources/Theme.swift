@@ -172,8 +172,10 @@ private struct KeyboardNavigation: ViewModifier {
             .focusEffectDisabled()
             .focused($windowFocused)
             .onAppear { windowFocused = true }
-            .onKeyPress(keys: [.tab], phases: .down) { press in
-                focus.move(by: press.modifiers.contains(.shift) ? -1 : 1)
+            // macOS delivers Shift-Tab as its own back-tab character (U+0019), not as Tab with Shift.
+            .onKeyPress(keys: [.tab, KeyEquivalent("\u{19}")], phases: .down) { press in
+                let back = press.key == KeyEquivalent("\u{19}") || press.modifiers.contains(.shift)
+                focus.move(by: back ? -1 : 1)
                 return .handled
             }
             .onKeyPress(keys: [.space, .return]) { _ in focus.activate() ? .handled : .ignored }

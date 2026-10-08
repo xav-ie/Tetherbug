@@ -12,8 +12,8 @@
   <rect x="270" y="84" width="22" height="18" rx="4" fill="#fff17b"/>
   <path d="M274 84 V78 a7 7 0 0 1 14 0 V84" fill="none" stroke="#fff17b" stroke-width="2.5"/>
   <text x="281" y="132" text-anchor="middle" fill="#51d136" font-size="12" font-weight="400" opacity="1">encrypted, bonded</text>
-  <g opacity="1"><rect x="392" y="54" width="120" height="76" rx="8" fill="#281336" stroke="#fff17b" stroke-width="2.5"/><path d="M442 54 h20 v4 a3 3 0 0 1 -3 3 h-14 a3 3 0 0 1 -3 -3 z" fill="#fff17b"/>
-  <path d="M392 130 H512 L526 135.5 v3 a2.5 2.5 0 0 1 -2.5 2.5 H380.5 a2.5 2.5 0 0 1 -2.5 -2.5 v-3 Z" fill="#fff17b"/><path d="M378 142 H526" stroke="#fff17b" stroke-width="5" stroke-linecap="round"/></g>
+  <g opacity="1"><path d="M392 130 V62 a8 8 0 0 1 8 -8 H504 a8 8 0 0 1 8 8 V130 Z" fill="#281336" stroke="#fff17b" stroke-width="2.5" stroke-linejoin="round"/><path d="M442 54 h20 v4 a3 3 0 0 1 -3 3 h-14 a3 3 0 0 1 -3 -3 z" fill="#fff17b"/>
+  <path d="M390.75 130 H513.25 L527 137 V139 Q527 141.5 524.5 141.5 H379.5 Q377 141.5 377 139 V137 Z" fill="#fff17b"/></g>
   <text x="452" y="160" text-anchor="middle" fill="#fff17b" font-size="13" font-weight="400" opacity="1">your paired Mac ✓</text>
   <path d="M190 132 Q 260 176 360 176" fill="none" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="4 6"/>
   <text x="380" y="181" text-anchor="start" fill="#ff6b6b" font-size="13" font-weight="400" opacity="1">other devices ✗</text>

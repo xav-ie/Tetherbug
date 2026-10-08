@@ -289,6 +289,25 @@ private struct TextButtonLabel: View {
     }
 }
 
+/// The window body: the site background and noise in a rounded shape, with a skeuomorphic rim — a
+/// light inner edge along the top-left fading to a dark one at the bottom-right.
+struct WindowSurface: View {
+    static let radius: CGFloat = 24
+    let palette: Palette
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
+        shape
+            .fill(palette.background)
+            .overlay(Image(nsImage: noise).resizable(resizingMode: .tile).clipShape(shape))
+            .overlay(shape.strokeBorder(
+                LinearGradient(colors: [Color.white.opacity(0.22), Color.white.opacity(0.04), Color.black.opacity(0.55)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing),
+                lineWidth: 1.5))
+            .overlay(shape.inset(by: 1.5).strokeBorder(Color.black.opacity(0.25), lineWidth: 1))
+    }
+}
+
 /// Makes the view it backs a handle for moving the window (the window itself isn't draggable by its
 /// background, so only the header moves it).
 struct WindowDragArea: NSViewRepresentable {

@@ -147,7 +147,8 @@ struct ContentView: View {
         .foregroundStyle(palette.foreground)
         .tint(palette.alt)
         .toggleStyle(TrailingSwitchStyle(palette: palette))
-        .background(palette.background.overlay(Image(nsImage: noise).resizable(resizingMode: .tile)).ignoresSafeArea())
+        .background(WindowSurface(palette: palette))
+        .clipShape(RoundedRectangle(cornerRadius: WindowSurface.radius, style: .continuous))
         .keyboardNavigation(keyboard)
     }
 
@@ -239,34 +240,37 @@ struct PasswordRow: View {
     }
 }
 
+/// A borderless window that can still take keyboard focus and close from ⌘W / the close control.
+final class AppWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+    override func performClose(_ sender: Any?) { close() }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow!
     private let model = AgentModel()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Content fills the whole window; the themed view draws its own close/minimise controls.
-        window = NSWindow(
-            contentRect: .zero,
-            styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
+        // Borderless and transparent: the content draws the rounded, bevelled window body itself, and
+        // the system shadow follows that shape.
+        window = AppWindow(contentRect: .zero, styleMask: [.borderless, .closable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "TetherLink"
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = true
         window.isMovableByWindowBackground = false
-        for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
-            window.standardWindowButton(button)?.isHidden = true
-        }
         NSApp.mainMenu = mainMenu()
         let hosting = NSHostingView(rootView: ContentView(model: model))
-        // Draw under the (hidden) title bar too, instead of leaving a strip for it.
         hosting.safeAreaRegions = []
         window.contentView = hosting
         window.setContentSize(window.contentView!.fittingSize)
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        // The shadow is computed from the window's alpha, so redo it once the rounded body is drawn.
+        DispatchQueue.main.async { self.window.invalidateShadow() }
     }
 
     /// Keeps ⌘W, ⌘M and ⌘Q working without the standard window buttons.

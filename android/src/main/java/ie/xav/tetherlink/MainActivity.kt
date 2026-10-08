@@ -1,5 +1,10 @@
 package ie.xav.tetherlink
 
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.googlefonts.GoogleFont
+import androidx.compose.ui.text.googlefonts.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.shadow
@@ -167,6 +172,15 @@ private data class SiteSurfaces(val top: Color, val bottom: Color)
 private val SurfacesDark = SiteSurfaces(Color(0xFF210F2E), Color(0xFF110718))
 private val SurfacesLight = SiteSurfaces(Color(0xFFC3C2BC), Color(0xFFB3B2AB))
 
+/** xav.ie's heading face, fetched through Google Fonts' downloadable-font provider (nothing bundled). */
+private val HeadingFont =
+    FontFamily(
+        Font(
+            GoogleFont("Sorts Mill Goudy"),
+            GoogleFont.Provider("com.google.android.gms.fonts", "com.google.android.gms", R.array.com_google_android_gms_fonts_certs),
+        ),
+    )
+
 /** Set when the Default (xav.ie) theme is on; cards then draw the site's bubble surface. */
 private val LocalSiteSurfaces = staticCompositionLocalOf<SiteSurfaces?> { null }
 
@@ -194,6 +208,10 @@ private fun SiteCard(onClick: (() -> Unit)? = null, content: @Composable ColumnS
         content = content,
     )
 }
+
+/** The app title's font: the site's heading face with the Default theme, Material's otherwise. */
+@Composable
+private fun titleFont() = if (LocalSiteSurfaces.current != null) HeadingFont else null
 
 /** List rows inside a card: transparent on the bubble surface, tonal otherwise. */
 @Composable
@@ -254,7 +272,15 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
                     modifier = Modifier.padding(top = 24.dp, bottom = 8.dp, start = 4.dp),
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("TetherLink", style = MaterialTheme.typography.displaySmall)
+                        // The serif runs wider than Material's face; keep the title on one line beside the buddy.
+                        Text(
+                            "TetherLink",
+                            style = MaterialTheme.typography.displaySmall,
+                            fontFamily = titleFont(),
+                            fontSize = if (titleFont() != null) 32.sp else TextUnit.Unspecified,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
                         Text("Instant Hotspot for your Mac", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Buddy(Modifier.height(80.dp))
@@ -436,7 +462,7 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth().statusBarsPadding().height(64.dp).padding(horizontal = 20.dp),
                 ) {
-                    Text("TetherLink", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    Text("TetherLink", style = MaterialTheme.typography.titleLarge, fontFamily = titleFont(), modifier = Modifier.weight(1f))
                     Buddy(Modifier.height(36.dp))
                 }
             }

@@ -152,6 +152,19 @@ class TetherService : Service() {
 
         TetherState.update { it.copy(running = true) }
         startAdvertising()
+        pollHotspot()
+    }
+
+    /** The AP-state broadcast isn't reliably delivered, so also check the real state every few seconds. */
+    private fun pollHotspot() {
+        handler.postDelayed({
+            val actual = hotspotState(Privileged.apState(getSystemService(WifiManager::class.java)))
+            if (actual != hotspot && hotspot != HOTSPOT_FAILED) {
+                hotspot = actual
+                notifySubscribers()
+            }
+            pollHotspot()
+        }, 3000)
     }
 
     private fun startAdvertising() {

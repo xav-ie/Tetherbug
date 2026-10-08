@@ -181,6 +181,15 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         if let error { log("command failed: \(error.localizedDescription)") }
     }
+
+    /// The phone restarted its GATT service (app update, service restart): the old characteristics
+    /// are gone, so rediscover and re-subscribe instead of writing into the void.
+    func peripheral(_ peripheral: CBPeripheral, didModifyServices invalidatedServices: [CBService]) {
+        log("phone's service changed; rediscovering")
+        command = nil
+        credentials = nil
+        peripheral.discoverServices([Gatt.service])
+    }
 }
 
 func log(_ message: String) {

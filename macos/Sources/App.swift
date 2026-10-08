@@ -208,7 +208,7 @@ struct PasswordRow: View {
     @ObservedObject var model: AgentModel
     let palette: Palette
     @State private var shown = false
-    /// Bumped on every copy; the label says "Copied" until 15s after the latest one.
+    /// Bumped on every copy; the label says "Copied!" until 5s after the latest one.
     @State private var copies = 0
     @State private var copied = false
 
@@ -227,7 +227,7 @@ struct PasswordRow: View {
             copies += 1
             copied = true
             let copy = copies
-            DispatchQueue.main.asyncAfter(deadline: .now() + 15) { if copies == copy { copied = false } }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { if copies == copy { copied = false } }
         }
     }
 

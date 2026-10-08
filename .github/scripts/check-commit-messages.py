@@ -20,7 +20,9 @@ def main(rev_range: str) -> int:
     shas = subprocess.run(["git", "rev-list", "--no-merges", rev_range], capture_output=True, text=True, check=True).stdout.split()
     problems = []
     for sha in shas:
-        message = subprocess.run(["git", "log", "-1", "--format=%B", sha], capture_output=True, text=True, check=True).stdout
+        author, message = subprocess.run(["git", "log", "-1", "--format=%an%x00%B", sha], capture_output=True, text=True, check=True).stdout.split("\0", 1)
+        if author.endswith("[bot]"):  # Dependabot and friends write their own messages
+            continue
         summary, *rest = message.strip().split("\n")
         body = [line for line in rest if line.strip() and not TRAILER.match(line.strip())]
         label = f"{sha[:7]} {summary}"

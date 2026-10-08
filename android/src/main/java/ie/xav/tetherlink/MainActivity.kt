@@ -1,5 +1,15 @@
 package ie.xav.tetherlink
 
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.foundation.clickable
@@ -152,20 +162,60 @@ private val PurpleLight =
         secondaryContainer = Color(0xFFD9CFE3), onSecondaryContainer = Color(0xFF281336),
     )
 
+/** xav.ie's bubble surface tones: background mixed 6% toward white (top) and black (bottom). */
+private data class SiteSurfaces(val top: Color, val bottom: Color)
+private val SurfacesDark = SiteSurfaces(Color(0xFF210F2E), Color(0xFF110718))
+private val SurfacesLight = SiteSurfaces(Color(0xFFC3C2BC), Color(0xFFB3B2AB))
+
+/** Set when the Default (xav.ie) theme is on; cards then draw the site's bubble surface. */
+private val LocalSiteSurfaces = staticCompositionLocalOf<SiteSurfaces?> { null }
+
+/**
+ * A card: Material's tonal card with System colors; with the Default theme, the site's bubble — a
+ * 155° gradient, a soft down-right shadow and a light top-left highlight edge.
+ */
+@Composable
+private fun SiteCard(onClick: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+    val surfaces = LocalSiteSurfaces.current
+    if (surfaces == null) {
+        val colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+        if (onClick != null) Card(onClick = onClick, colors = colors, content = content) else Card(colors = colors, content = content)
+        return
+    }
+    val shape = RoundedCornerShape(20.dp)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .shadow(10.dp, shape, ambientColor = Color.Black, spotColor = Color.Black)
+            .background(Brush.linearGradient(listOf(surfaces.top, surfaces.bottom), start = Offset(0f, 0f), end = Offset(800f, 1700f)), shape)
+            .border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.14f), Color.Transparent), end = Offset(400f, 400f)), shape)
+            .clip(shape)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        content = content,
+    )
+}
+
+/** List rows inside a card: transparent on the bubble surface, tonal otherwise. */
+@Composable
+private fun cardItemColors() =
+    ListItemDefaults.colors(containerColor = if (LocalSiteSurfaces.current != null) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer)
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun Theme(style: ThemeStyle, content: @Composable () -> Unit) {
     val context = LocalContext.current
     val dark = isSystemInDarkTheme()
-    MaterialExpressiveTheme(
-        colorScheme =
-            when (style) {
-                ThemeStyle.SYSTEM -> if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-                ThemeStyle.PURPLE -> if (dark) PurpleDark else PurpleLight
-            },
-        motionScheme = MotionScheme.expressive(),
-        content = content,
-    )
+    CompositionLocalProvider(LocalSiteSurfaces provides if (style == ThemeStyle.PURPLE) (if (dark) SurfacesDark else SurfacesLight) else null) {
+        MaterialExpressiveTheme(
+            colorScheme =
+                when (style) {
+                    ThemeStyle.SYSTEM -> if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+                    ThemeStyle.PURPLE -> if (dark) PurpleDark else PurpleLight
+                },
+            motionScheme = MotionScheme.expressive(),
+            content = content,
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -288,7 +338,7 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
             }
             item { SectionTitle("Hotspot") }
             item {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                SiteCard {
                     ListItem(
                         headlineContent = { Text("Look like an iPhone hotspot") },
                         supportingContent = {
@@ -308,12 +358,12 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
                                 },
                             )
                         },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                        colors = cardItemColors(),
                     )
                 }
             }
             item {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                SiteCard {
                     ListItem(
                         headlineContent = { Text("Hotspot is ${hotspotLabel(state.hotspot)}") },
                         supportingContent = {
@@ -325,13 +375,13 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
                                 },
                             )
                         },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                        colors = cardItemColors(),
                     )
                 }
             }
             item { SectionTitle("Appearance") }
             item {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                SiteCard {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("App theme", style = MaterialTheme.typography.titleMedium)
                         Choice(
@@ -357,7 +407,7 @@ private fun SetupScreen(tick: Int, refresh: () -> Unit) {
             }
             item { SectionTitle("Resources") }
             item {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                SiteCard {
                     Column {
                         ResourceRow("Set up the Mac app", "Install TetherLink on your Mac and pair it") { uri.openUri(Links.MAC_SETUP) }
                         ResourceRow("Get TetherLink for Mac", "Downloads on the releases page") { uri.openUri(Links.RELEASES) }
@@ -414,7 +464,7 @@ private fun ResourceRow(title: String, subtitle: String, onClick: () -> Unit) {
         headlineContent = { Text(title) },
         supportingContent = { Text(subtitle) },
         trailingContent = { Text("↗", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary) },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        colors = cardItemColors(),
         modifier = Modifier.clickable(onClick = onClick),
     )
 }
@@ -468,15 +518,7 @@ private fun Step(
     detailsLink: Pair<String, () -> Unit>? = null,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
-    Card(
-        onClick = { expanded = !expanded },
-        enabled = details != null,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-            disabledContentColor = MaterialTheme.colorScheme.onSurface,
-        ),
-    ) {
+    SiteCard(onClick = if (details != null) ({ expanded = !expanded }) else null) {
         ListItem(
             leadingContent = {
                 Surface(
@@ -493,7 +535,7 @@ private fun Step(
             headlineContent = { Text(title) },
             supportingContent = { Text(body) },
             trailingContent = action?.let { (label, onClick) -> { FilledTonalButton(onClick = onClick) { Text(label) } } },
-            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            colors = cardItemColors(),
         )
         AnimatedVisibility(visible = expanded && details != null) {
             Column(Modifier.padding(start = 68.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

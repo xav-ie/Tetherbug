@@ -20,6 +20,8 @@ usual hotspot auto-join rules.
    (no root) and can add Apple's Personal Hotspot marker to its Wi-Fi beacon,
    which is what makes macOS recognise it.
 
+The phone and Mac talk over a small, documented [BLE protocol](docs/protocol.md).
+
 The Mac app has a window for status, the hotspot switch, its password and
 settings, plus a `tether-link` command for scripts and
 [SketchyBar](docs/sketchybar.md).
@@ -34,40 +36,14 @@ settings, plus a `tether-link` command for scripts and
   settings (macOS 14+).
 - **SketchyBar:** see [TetherLink in SketchyBar](docs/sketchybar.md).
 
-Releases aren't published yet; until then, build from source (below).
+Releases aren't published yet; until then, build from source ([Development](docs/development.md)).
 
-## Repository layout
+## Documentation
 
-| Path | What |
-| --- | --- |
-| `android/` | Android app: setup screen and the foreground service (BLE GATT server, hotspot control via Shizuku) |
-| `macos/` | Mac app: one binary that is the window, the background agent (`agent`) and the CLI |
-| `cli/softap-ie/` | `softap-ie show\|apple\|clear`: set the Personal Hotspot marker over `adb`, without the app |
-| `design/` | the icon: `icon-source.svg` (editable) and `icon.py`, which generates every shipped icon asset |
-| `docs/` | Mac and SketchyBar guides |
-
-## Development
-
-Everything builds from the flake's dev shell (JDK 21 and the Android SDK).
-
-```sh
-nix develop
-(cd android && ./gradlew assembleDebug)     # android/build/outputs/apk/debug/
-macos/build.sh ~/Applications               # TetherLink.app (needs Xcode command line tools)
-nix run .#softap-ie -- show                 # softap-ie over adb
-```
-
-`macos/build.sh` also renders the Mac app icon from the buddy outline, so no
-raster assets live in the repo. After changing the icon, regenerate the
-Android drawables, `design/icon.svg` and the Mac's shape data:
-
-```sh
-nix shell --impure --expr 'with import <nixpkgs> {}; python3.withPackages (p: [ p.shapely p.svg-path ])' -c python3 design/icon.py
-```
-
-CI builds the app and `softap-ie` on every push. Pushing a `v*` tag builds a
-minified, signed APK and attaches it to a GitHub release; Mac release builds
-are still to come.
+- [TetherLink for Mac](docs/macos.md): installing, pairing, settings and the `tether-link` command
+- [TetherLink in SketchyBar](docs/sketchybar.md)
+- [Development](docs/development.md): repository layout and building each piece
+- [BLE protocol](docs/protocol.md): how the phone and Mac talk
 
 ## How macOS recognises a Personal Hotspot
 
@@ -83,24 +59,6 @@ Android 13+ can add vendor elements to its hotspot through the system-only
 `SoftApConfiguration.Builder#setVendorElements`, which the shell uid (adb or
 Shizuku) may call. The setting persists in the hotspot config, and takes
 effect the next time the hotspot starts.
-
-## BLE protocol
-
-One primary service. Every characteristic requires an encrypted, bonded link,
-so only a paired Mac can use it; the advertisement carries nothing but the
-service UUID.
-
-| UUID | Name | Properties | Payload |
-| --- | --- | --- | --- |
-| `1581bac4-33fe-43a8-b97f-5dd7a01f48c9` | service | | |
-| `90766fca-8a24-43ae-8501-3dcef06a8479` | status | read, notify | `version u8` (2), `hotspot u8` (0 off, 1 starting, 2 on, 3 failed), `battery u8` (%), `signal u8` (cell, 0–4), `flags u8` (bit 0: hotspot controllable, i.e. Shizuku ready), `ssid` (UTF-8, rest). Version 1 had no `flags`. |
-| `e036426f-6317-487d-8777-e6f6d91f8a4d` | command | write | `0x01` enable, `0x02` disable |
-| `355534b0-7222-480b-aa18-02a6c30feea2` | credentials | read | hotspot passphrase (UTF-8) |
-
-The phone notifies status whenever the hotspot state changes; a command that
-asks for the state the hotspot is already in is a no-op. The Mac agent reads
-the passphrase on connect and whenever the hotspot comes on, and hands it out
-only on an explicit request, never in its status stream.
 
 ## References
 

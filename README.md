@@ -29,40 +29,50 @@ usual hotspot auto-join rules.
 ### When Wi-Fi drops
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Helvetica, Arial, sans-serif', 'primaryColor': '#281336', 'primaryTextColor': '#fff17b', 'primaryBorderColor': '#fff17b', 'lineColor': '#fff17b', 'textColor': '#fff17b', 'clusterBkg': '#12081a', 'clusterBorder': '#51d136', 'titleColor': '#51d136', 'edgeLabelBackground': '#12081a', 'actorBkg': '#281336', 'actorBorder': '#fff17b', 'actorTextColor': '#fff17b', 'actorLineColor': '#fff17b', 'signalColor': '#fff17b', 'signalTextColor': '#fff17b', 'noteBkgColor': '#281336', 'noteTextColor': '#51d136', 'noteBorderColor': '#51d136'}}}%%
 sequenceDiagram
     participant Mac as Mac agent
     participant Phone as Android app
     participant Shizuku
-    Note over Mac: Wi-Fi disconnected
-    Mac->>Mac: wait 5 s for macOS to rejoin a known network
-    Mac->>Phone: enable (encrypted BLE write)
-    Phone->>Shizuku: start tethering
-    Shizuku-->>Phone: hotspot on
-    Phone-->>Mac: status: on, ssid "My Hotspot"
-    Note over Mac: macOS auto-joins the hotspot as a Personal Hotspot
-    Note over Mac: later: back on regular Wi-Fi
-    Mac->>Phone: disable
-    Phone->>Shizuku: stop tethering
+    rect rgb(18, 8, 26)
+        Note over Mac: Wi-Fi disconnected
+        Mac->>Mac: wait 5 s for macOS to rejoin a known network
+        Mac->>Phone: enable (encrypted BLE write)
+        Phone->>Shizuku: start tethering
+        Shizuku-->>Phone: hotspot on
+        Phone-->>Mac: status: on, ssid "My Hotspot"
+        Note over Mac: macOS auto-joins the hotspot as a Personal Hotspot
+        Note over Mac: later: back on regular Wi-Fi
+        Mac->>Phone: disable
+        Phone->>Shizuku: stop tethering
+    end
 ```
 
 ### The pieces
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Helvetica, Arial, sans-serif', 'primaryColor': '#281336', 'primaryTextColor': '#fff17b', 'primaryBorderColor': '#fff17b', 'lineColor': '#fff17b', 'textColor': '#fff17b', 'clusterBkg': '#12081a', 'clusterBorder': '#51d136', 'titleColor': '#51d136', 'edgeLabelBackground': '#12081a', 'actorBkg': '#281336', 'actorBorder': '#fff17b', 'actorTextColor': '#fff17b', 'actorLineColor': '#fff17b', 'signalColor': '#fff17b', 'signalTextColor': '#fff17b', 'noteBkgColor': '#281336', 'noteTextColor': '#51d136', 'noteBorderColor': '#51d136'}}}%%
 flowchart LR
-    subgraph mac [Mac]
-        window[TetherLink window]
-        cli[tether-link CLI / SketchyBar]
-        agent[Background agent]
-        window -- local socket --> agent
-        cli -- local socket --> agent
+    subgraph frame [" "]
+        direction LR
+        subgraph mac [Mac]
+            window[TetherLink window]
+            cli[tether-link CLI / SketchyBar]
+            agent[Background agent]
+            sock([agent.sock])
+            window --> sock
+            cli --> sock
+            sock --> agent
+        end
+        subgraph phone [Android phone]
+            service[TetherLink service]
+            shizuku[Shizuku]
+            tethering[Tethering + Wi-Fi services]
+            service --> shizuku --> tethering
+        end
+        agent <-- "BLE: status, commands, password" --> service
     end
-    subgraph phone [Android phone]
-        service[TetherLink service]
-        shizuku[Shizuku]
-        tethering[Tethering + Wi-Fi services]
-        service --> shizuku --> tethering
-    end
-    agent <-- "BLE: status, commands, password" --> service
+    style frame fill:#12081a,stroke:#12081a
 ```
 
 The phone and Mac talk over a small, documented [BLE protocol](docs/protocol.md).

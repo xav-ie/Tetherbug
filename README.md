@@ -13,12 +13,18 @@ usual hotspot auto-join rules.
 1. The **Android app** runs a small foreground service that advertises a
    Bluetooth LE service. Only a Mac paired with the phone can read its status
    or send it commands (the link is encrypted and bonded).
+
+   <img src="docs/images/step-pair.svg" alt="The phone advertises over Bluetooth; only the paired Mac gets an encrypted, bonded link, other devices are refused.">
 2. The **Mac app**'s background agent stays connected to the phone. When Wi-Fi
    stays disconnected for 5 seconds it asks for the hotspot; once the Mac is
    back on a regular network it turns the hotspot off again.
+
+   <img src="docs/images/step-wifi-drops.svg" alt="The Mac loses Wi-Fi, waits 5 seconds for a known network, then sends enable to the phone; back on regular Wi-Fi it sends disable.">
 3. The phone turns its hotspot on through [Shizuku](https://shizuku.rikka.app)
    (no root) and can add Apple's Personal Hotspot marker to its Wi-Fi beacon,
    which is what makes macOS recognise it.
+
+   <img src="docs/images/step-hotspot-on.svg" alt="The phone turns its hotspot on via Shizuku with the Apple marker in its beacon, and the Mac joins it as a Personal Hotspot.">
 
 ### When Wi-Fi drops
 
@@ -26,17 +32,17 @@ usual hotspot auto-join rules.
 sequenceDiagram
     participant Mac as Mac agent
     participant Phone as Android app
-    participant Android as Android (via Shizuku)
+    participant Shizuku
     Note over Mac: Wi-Fi disconnected
     Mac->>Mac: wait 5 s for macOS to rejoin a known network
     Mac->>Phone: enable (encrypted BLE write)
-    Phone->>Android: start tethering
-    Android-->>Phone: hotspot on
-    Phone-->>Mac: status: on, ssid "x1"
-    Note over Mac: macOS auto-joins x1 as a Personal Hotspot
+    Phone->>Shizuku: start tethering
+    Shizuku-->>Phone: hotspot on
+    Phone-->>Mac: status: on, ssid "My Hotspot"
+    Note over Mac: macOS auto-joins the hotspot as a Personal Hotspot
     Note over Mac: later: back on regular Wi-Fi
     Mac->>Phone: disable
-    Phone->>Android: stop tethering
+    Phone->>Shizuku: stop tethering
 ```
 
 ### The pieces

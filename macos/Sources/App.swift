@@ -88,6 +88,7 @@ enum Links {
 struct ContentView: View {
     @ObservedObject var model: AgentModel
     @Environment(\.colorScheme) private var scheme
+    @StateObject private var keyboard = KeyboardFocus()
 
     var body: some View {
         let palette = Palette.current(scheme)
@@ -145,6 +146,7 @@ struct ContentView: View {
         .tint(palette.alt)
         .toggleStyle(TrailingSwitchStyle(palette: palette))
         .background(palette.background.overlay(Image(nsImage: noise).resizable(resizingMode: .tile)).ignoresSafeArea())
+        .keyboardNavigation(keyboard)
     }
 
     @ViewBuilder private func status(_ palette: Palette) -> some View {
@@ -196,6 +198,28 @@ struct PasswordRow: View {
     @ObservedObject var model: AgentModel
     let palette: Palette
     @State private var shown = false
+    /// Bumped on every copy; the label says "Copied" until 15s after the latest one.
+    @State private var copies = 0
+    @State private var copied = false
+
+    private func toggleShown() {
+        if !shown { model.fetchPassword() }
+        shown.toggle()
+    }
+
+    private func copy() {
+        model.fetchPassword()
+        // Copy once the agent has replied.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            guard let password = model.password else { return }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(password, forType: .string)
+            copies += 1
+            copied = true
+            let copy = copies
+            DispatchQueue.main.asyncAfter(deadline: .now() + 15) { if copies == copy { copied = false } }
+        }
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -203,23 +227,12 @@ struct PasswordRow: View {
             Spacer()
             Text(shown ? (model.password ?? "…") : "••••••••").font(.system(.body, design: .monospaced)).textSelection(.enabled)
                 .accessibilityLabel(shown ? (model.password ?? "loading") : "hidden")
-            Group {
-                Button(shown ? "Hide" : "Show") {
-                    if !shown { model.fetchPassword() }
-                    shown.toggle()
-                }
-                Button("Copy") {
-                    model.fetchPassword()
-                    // Copy once the agent has replied.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        guard let password = model.password else { return }
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(password, forType: .string)
-                    }
-                }
-            }
-            .buttonStyle(TextButtonStyle(palette: palette))
-            .modifier(FocusRing(palette: palette, radius: 4))
+            Button(shown ? "Hide" : "Show", action: toggleShown)
+                .buttonStyle(TextButtonStyle(palette: palette))
+                .keyboardFocusable(palette, radius: 4, action: toggleShown)
+            Button(copied ? "Copied" : "Copy", action: copy)
+                .buttonStyle(TextButtonStyle(palette: palette))
+                .keyboardFocusable(palette, radius: 4, action: copy)
         }
     }
 }

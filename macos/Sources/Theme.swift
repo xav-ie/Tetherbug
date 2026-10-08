@@ -5,18 +5,18 @@ import SwiftUI
 struct Palette {
     let background, foreground, alt: Color
     let surfaceTop, surfaceBottom, shadow, highlight: Color
-    /// The foreground mixed 55% into the background, for "on" switch tracks.
-    let mutedForeground: Color
+    /// A brighter purple for "on" switch tracks.
+    let onTrack: Color
 
     static func current(_ scheme: ColorScheme) -> Palette {
         // --background / --foreground / --alt, with the color-mix() derived tones precomputed.
         scheme == .dark
             ? Palette(background: rgb(0x12081A), foreground: rgb(0xFFF17B), alt: rgb(0x51D136),
                       surfaceTop: rgb(0x210F2E), surfaceBottom: rgb(0x110718),
-                      shadow: rgb(0x100717), highlight: rgb(0x413948), mutedForeground: rgb(0x7D7146))
+                      shadow: rgb(0x100717), highlight: rgb(0x413948), onTrack: rgb(0x4A2A63))
             : Palette(background: rgb(0xBEBDB6), foreground: rgb(0x281336), alt: rgb(0x257015),
                       surfaceTop: rgb(0xC3C2BC), surfaceBottom: rgb(0xB3B2AB),
-                      shadow: rgb(0xA7A6A0), highlight: rgb(0xCBCAC5), mutedForeground: rgb(0x7A707C))
+                      shadow: rgb(0xA7A6A0), highlight: rgb(0xCBCAC5), onTrack: rgb(0x9E8AAF))
     }
 
     private static func rgb(_ hex: Int) -> Color {
@@ -80,24 +80,105 @@ struct Card<Content: View>: View {
     }
 }
 
-/// Keyboard focus like the site's `:focus-visible`: a 2pt foreground outline 2pt outside the control.
-/// Makes the control reachable with Tab (and Space/Return to activate) even without Full Keyboard Access.
-struct FocusRing: ViewModifier {
+/// App-level keyboard navigation. macOS only lets Tab reach text fields unless the user enables
+/// Keyboard navigation, so the window drives focus itself: controls register their on-screen frame
+/// and action, Tab/Shift-Tab walk them in reading order, Space/Return activate, Escape clears.
+final class KeyboardFocus: ObservableObject {
+    struct Entry {
+        var frame: CGRect
+        var action: () -> Void
+    }
+
+    @Published var current: UUID?
+    var entries: [UUID: Entry] = [:]
+
+    private var ordered: [UUID] {
+        entries.sorted { a, b in
+            abs(a.value.frame.midY - b.value.frame.midY) < 6 ? a.value.frame.minX < b.value.frame.minX : a.value.frame.midY < b.value.frame.midY
+        }.map(\.key)
+    }
+
+    func move(by step: Int) {
+        let order = ordered
+        guard !order.isEmpty else { return }
+        if let current, let i = order.firstIndex(of: current) {
+            self.current = order[(i + step + order.count) % order.count]
+        } else {
+            current = step > 0 ? order.first : order.last
+        }
+    }
+
+    func activate() -> Bool {
+        guard let current, let entry = entries[current] else { return false }
+        entry.action()
+        return true
+    }
+}
+
+extension View {
+    /// Joins the window's keyboard navigation; draws the site's `:focus-visible` ring (a 2pt
+    /// foreground outline 2pt outside the control) while focused.
+    func keyboardFocusable(_ palette: Palette, radius: CGFloat = 8, action: @escaping () -> Void) -> some View {
+        modifier(KeyboardFocusable(palette: palette, radius: radius, action: action))
+    }
+
+    /// The window side: owns key handling for everything marked `keyboardFocusable`.
+    func keyboardNavigation(_ focus: KeyboardFocus) -> some View {
+        modifier(KeyboardNavigation(focus: focus))
+    }
+}
+
+private struct KeyboardFocusable: ViewModifier {
     let palette: Palette
-    var radius: CGFloat = 8
-    @FocusState private var focused: Bool
+    let radius: CGFloat
+    let action: () -> Void
+    @EnvironmentObject private var focus: KeyboardFocus
+    @State private var id = UUID()
 
     func body(content: Content) -> some View {
         content
-            .focusable(interactions: .activate)
-            .focusEffectDisabled()
-            .focused($focused)
+            .background(GeometryReader { geometry in
+                let frame = geometry.frame(in: .named(KeyboardNavigation.space))
+                Color.clear
+                    .onAppear { focus.entries[id] = .init(frame: frame, action: action) }
+                    .onChange(of: frame) { _, frame in focus.entries[id] = .init(frame: frame, action: action) }
+            })
+            .onDisappear {
+                focus.entries[id] = nil
+                if focus.current == id { focus.current = nil }
+            }
             .overlay(
                 RoundedRectangle(cornerRadius: radius + 4, style: .continuous)
                     .stroke(palette.foreground, lineWidth: 2)
                     .padding(-4)
-                    .opacity(focused ? 1 : 0)
+                    .opacity(focus.current == id ? 1 : 0)
+                    .allowsHitTesting(false)
             )
+    }
+}
+
+private struct KeyboardNavigation: ViewModifier {
+    static let space = "keyboard-navigation"
+    @ObservedObject var focus: KeyboardFocus
+    @FocusState private var windowFocused: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .coordinateSpace(name: Self.space)
+            .environmentObject(focus)
+            .focusable()
+            .focusEffectDisabled()
+            .focused($windowFocused)
+            .onAppear { windowFocused = true }
+            .onKeyPress(keys: [.tab], phases: .down) { press in
+                focus.move(by: press.modifiers.contains(.shift) ? -1 : 1)
+                return .handled
+            }
+            .onKeyPress(keys: [.space, .return]) { _ in focus.activate() ? .handled : .ignored }
+            .onKeyPress(.escape) {
+                focus.current = nil
+                return .handled
+            }
     }
 }
 
@@ -113,42 +194,43 @@ private struct SwitchRow: View {
     let configuration: ToggleStyleConfiguration
     let palette: Palette
     @Environment(\.isEnabled) private var enabled
-    @State private var hovering = false
 
     var body: some View {
         HStack {
             configuration.label
             Spacer()
-            Button {
-                withAnimation(.snappy(duration: 0.18)) { configuration.isOn.toggle() }
-            } label: {
+            Button(action: toggle) {
                 ZStack(alignment: configuration.isOn ? .trailing : .leading) {
-                    // Sunken trough; muted yellow when on.
+                    // Sunken trough; a brighter purple when on.
                     Capsule()
-                        .fill((configuration.isOn ? palette.mutedForeground : palette.surfaceBottom)
+                        .fill((configuration.isOn ? palette.onTrack : palette.surfaceBottom)
                             .shadow(.inner(color: .black.opacity(0.45), radius: 4, x: 3, y: 3))
                             .shadow(.inner(color: palette.highlight, radius: 1.5, x: -1, y: -1)))
                         .frame(width: 46, height: 26)
-                    // Raised purple knob with a light top-left rim and a dark bottom-right edge.
+                    // Raised purple knob with a pronounced light top-left rim and dark bottom-right edge.
                     Circle()
                         .fill(LinearGradient(colors: [palette.surfaceTop, palette.surfaceBottom],
                                              startPoint: .topLeading, endPoint: .bottomTrailing))
                         .overlay(Circle().strokeBorder(
-                            LinearGradient(colors: [Color.white.opacity(hovering ? 0.45 : 0.3), .clear, Color.black.opacity(0.4)],
+                            LinearGradient(colors: [Color.white.opacity(0.6), .clear, Color.black.opacity(0.6)],
                                            startPoint: .topLeading, endPoint: .bottomTrailing),
-                            lineWidth: 1.2))
-                        .shadow(color: .black.opacity(0.55), radius: 2.5, x: 1.5, y: 2)
+                            lineWidth: 1.6))
+                        .shadow(color: .black.opacity(0.6), radius: 2.5, x: 1.5, y: 2)
                         .frame(width: 20, height: 20)
                         .padding(3)
                 }
             }
             .buttonStyle(.plain)
-            .modifier(FocusRing(palette: palette, radius: 13))
-            .onHover { hovering = $0 }
+            .keyboardFocusable(palette, radius: 13, action: toggle)
             .opacity(enabled ? 1 : 0.4)
         }
         // VoiceOver sees a native switch with the row's label and on/off value.
         .accessibilityRepresentation { Toggle(isOn: configuration.$isOn) { configuration.label } }
+    }
+
+    private func toggle() {
+        guard enabled else { return }
+        withAnimation(.snappy(duration: 0.18)) { configuration.isOn.toggle() }
     }
 }
 
@@ -169,7 +251,7 @@ struct SiteLink<Icon: View>: View {
             hovering = inside
             inside ? NSCursor.pointingHand.push() : NSCursor.pop()
         }
-        .modifier(FocusRing(palette: palette, radius: 4))
+        .keyboardFocusable(palette, radius: 4) { NSWorkspace.shared.open(url) }
     }
 }
 
@@ -232,7 +314,7 @@ private struct WindowControl: View {
         .opacity(hovering ? 1 : 0.7)
         .bubble(palette, radius: 13)
         .onHover { hovering = $0 }
-        .modifier(FocusRing(palette: palette, radius: 13))
+        .keyboardFocusable(palette, radius: 13, action: action)
         .help(help)
         .accessibilityLabel(help)
     }

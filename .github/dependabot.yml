@@ -1,0 +1,27 @@
+version: 2
+
+updates:
+  # Workflow actions. The cooldown waits 14 days after a release before proposing it, so a
+  # compromised release that gets yanked within days (the tj-actions pattern) never lands here.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ['*']
+
+  # The Android app's Gradle plugins and libraries.
+  - package-ecosystem: gradle
+    directory: /android
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    groups:
+      gradle:
+        patterns: ['*']

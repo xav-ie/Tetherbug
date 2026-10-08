@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" font-family="-apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif">
+  <title>How macOS spots a Personal Hotspot: an Apple vendor element in the Wi-Fi beacon</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#fff17b"/>
+    </marker>
+  </defs>
+  <rect width="880" height="300" rx="24" fill="#12081a"/>
+
+  <!-- The phone's beacon -->
+  <text x="32" y="44" fill="#fff17b" font-size="18" font-weight="600">Phone's Wi-Fi beacon</text>
+  <g font-size="13" fill="#fff17b">
+    <rect x="32" y="64" width="96" height="56" rx="10" fill="#281336"/>
+    <text x="80" y="90" text-anchor="middle">SSID</text>
+    <text x="80" y="108" text-anchor="middle" opacity=".7" font-family="ui-monospace, Menlo, monospace">"x1"</text>
+    <rect x="136" y="64" width="96" height="56" rx="10" fill="#281336"/>
+    <text x="184" y="90" text-anchor="middle">Rates</text>
+    <text x="184" y="108" text-anchor="middle" opacity=".7">…</text>
+    <rect x="240" y="64" width="96" height="56" rx="10" fill="#281336"/>
+    <text x="288" y="90" text-anchor="middle">Security</text>
+    <text x="288" y="108" text-anchor="middle" opacity=".7">WPA2</text>
+    <!-- Apple vendor element, added by TetherLink -->
+    <rect x="344" y="64" width="160" height="56" rx="10" fill="#fff17b"/>
+    <text x="424" y="88" text-anchor="middle" fill="#281336" font-weight="600">Apple vendor element</text>
+    <text x="424" y="107" text-anchor="middle" fill="#281336" font-family="ui-monospace, Menlo, monospace" font-size="12">DD 0A 00:17:F2 06 …</text>
+  </g>
+  <text x="424" y="142" text-anchor="middle" fill="#51d136" font-size="12">added by TetherLink (Android 13+)</text>
+
+  <!-- Arrow to macOS -->
+  <path d="M424 156 C 424 200, 560 200, 600 160" fill="none" stroke="#fff17b" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- macOS Wi-Fi menu mock -->
+  <text x="576" y="44" fill="#fff17b" font-size="18" font-weight="600">macOS Wi-Fi menu</text>
+  <rect x="576" y="64" width="272" height="96" rx="14" fill="#281336"/>
+  <text x="600" y="98" fill="#fff17b" font-size="15">x1</text>
+  <!-- the link glyph macOS shows for Personal Hotspots -->
+  <g fill="none" stroke="#fff17b" stroke-width="2.2" transform="translate(800 86)">
+    <rect x="-14" y="-6" width="16" height="10" rx="5"/>
+    <rect x="-4" y="0" width="16" height="10" rx="5"/>
+  </g>
+  <text x="600" y="136" fill="#fff17b" opacity=".7" font-size="12">Personal Hotspot</text>
+
+  <!-- What macOS concludes -->
+  <g font-size="13" fill="#fff17b">
+    <text x="576" y="196" font-weight="600">isPersonalHotspot = true, so macOS:</text>
+    <text x="588" y="220">• shows the link icon</text>
+    <text x="588" y="242">• treats the connection as metered</text>
+    <text x="588" y="264">• applies hotspot auto-join rules</text>
+  </g>
+</svg>

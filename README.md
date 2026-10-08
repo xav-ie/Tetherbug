@@ -20,8 +20,46 @@ usual hotspot auto-join rules.
    (no root) and can add Apple's Personal Hotspot marker to its Wi-Fi beacon,
    which is what makes macOS recognise it.
 
-The phone and Mac talk over a small, documented [BLE protocol](docs/protocol.md).
+### When Wi-Fi drops
 
+```mermaid
+sequenceDiagram
+    participant Mac as Mac agent
+    participant Phone as Android app
+    participant Android as Android (via Shizuku)
+    Note over Mac: Wi-Fi disconnected
+    Mac->>Mac: wait 5 s for macOS to rejoin a known network
+    Mac->>Phone: enable (encrypted BLE write)
+    Phone->>Android: start tethering
+    Android-->>Phone: hotspot on
+    Phone-->>Mac: status: on, ssid "x1"
+    Note over Mac: macOS auto-joins x1 as a Personal Hotspot
+    Note over Mac: later: back on regular Wi-Fi
+    Mac->>Phone: disable
+    Phone->>Android: stop tethering
+```
+
+### The pieces
+
+```mermaid
+flowchart LR
+    subgraph mac [Mac]
+        window[TetherLink window]
+        cli[tether-link CLI / SketchyBar]
+        agent[Background agent]
+        window -- local socket --> agent
+        cli -- local socket --> agent
+    end
+    subgraph phone [Android phone]
+        service[TetherLink service]
+        shizuku[Shizuku]
+        tethering[Tethering + Wi-Fi services]
+        service --> shizuku --> tethering
+    end
+    agent <-- "BLE: status, commands, password" --> service
+```
+
+The phone and Mac talk over a small, documented [BLE protocol](docs/protocol.md).
 The Mac app has a window for status, the hotspot switch, its password and
 settings, plus a `tether-link` command for scripts and
 [SketchyBar](docs/sketchybar.md).
@@ -46,6 +84,8 @@ Releases aren't published yet; until then, build from source ([Development](docs
 - [BLE protocol](docs/protocol.md): how the phone and Mac talk
 
 ## How macOS recognises a Personal Hotspot
+
+<p align="center"><img src="docs/images/beacon.svg" alt="The phone's Wi-Fi beacon carries an Apple vendor element (DD 0A 00:17:F2 06 …), so macOS lists the network as a Personal Hotspot with the link icon, treats it as metered and applies hotspot auto-join rules."></p>
 
 macOS decides a network is a personal hotspot from an Apple vendor element in
 the Wi-Fi beacon (OUI `00:17:F2`, type 6, `DD0A0017F206010103010000`).

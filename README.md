@@ -50,7 +50,7 @@ sequenceDiagram
 
 ### The pieces
 
-<p align="center"><img src="docs/images/pieces-mac.svg" alt="On the Mac: the TetherLink window and the tether-link CLI (and SketchyBar) talk to the background agent over one local socket, agent.sock; the agent keeps the Bluetooth LE link to the phone."></p>
+<p align="center"><img src="docs/images/pieces-mac.svg" alt="On the Mac: the TetherLink window and the tether-link CLI talk to the background agent over one local socket, agent.sock; the agent keeps the Bluetooth LE link to the phone."></p>
 
 <p align="center"><img src="docs/images/pieces-phone.svg" alt="On the phone: the TetherLink service answers the Mac over Bluetooth LE and starts or stops the hotspot through Shizuku and Android's tethering and Wi-Fi services, without root."></p>
 

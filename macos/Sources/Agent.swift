@@ -2,6 +2,7 @@ import CoreBluetooth
 import CoreWLAN
 import Foundation
 import Network
+import UserNotifications
 
 /// Background agent: keeps the Bluetooth LE link to the phone, decides when to ask for the hotspot,
 /// and serves its state over a local socket to the app and the CLI.
@@ -25,7 +26,7 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         // One agent per user: a second copy (a login item plus a manual run, say) must not take the
         // socket from the first. A clean exit isn't restarted by launchd (KeepAlive SuccessfulExit=false).
         if SocketClient.request("status", onState: { _ in false }) {
-            log("another agent is already running; exiting")
+            note("another agent is already running; exiting")
             exit(0)
         }
         server = SocketServer(path: Socket.path) { [weak self] line in self?.handle(line) }
@@ -34,7 +35,7 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         wifi.start(queue: .main)
         // Re-evaluate retries even when nothing else changes.
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
-        log("agent started; socket at \(Socket.path)")
+        note("agent started; socket at \(Socket.path)")
         RunLoop.main.run()
     }
 
@@ -58,6 +59,7 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     private func wifiChanged(_ path: NWPath) {
         let poweredOn = CWWiFiClient.shared().interface()?.powerOn() ?? false
         let offline = poweredOn && path.status != .satisfied
+        if offline != state.wifiOffline { note(offline ? "Wi-Fi lost" : "Wi-Fi connected") }
         state.wifiOffline = offline
         if offline {
             if offlineSince == nil {
@@ -89,10 +91,10 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         wanted = on
         state.lastRequest = "\(on ? "enable" : "disable") (\(reason)) at \(ISO8601DateFormatter().string(from: Date()))"
         guard let phone, let command else {
-            log("\(on ? "enable" : "disable") requested (\(reason)) but the phone isn't connected")
+            note("\(on ? "enable" : "disable") requested (\(reason)) but the phone isn't connected")
             return
         }
-        log("\(on ? "enable" : "disable") (\(reason))")
+        note("\(on ? "enable" : "disable") (\(reason))")
         phone.writeValue(Data([on ? Gatt.enable : Gatt.disable]), for: command, type: .withResponse)
     }
 
@@ -125,13 +127,13 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        log("connected to \(peripheral.name ?? "phone")")
+        note("connected to \(peripheral.name ?? "phone")")
         state.connected = true
         peripheral.discoverServices([Gatt.service])
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        log("disconnected: \(error?.localizedDescription ?? "no error")")
+        note("disconnected: \(error?.localizedDescription ?? "no error")")
         state.connected = false
         command = nil
         credentials = nil
@@ -140,7 +142,7 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        log("connect failed: \(error?.localizedDescription ?? "unknown")")
+        note("connect failed: \(error?.localizedDescription ?? "unknown")")
         central.connect(peripheral)
     }
 
@@ -166,26 +168,41 @@ final class Agent: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        if let error { return log("read failed: \(error.localizedDescription)") }
+        if let error { return note("read failed: \(error.localizedDescription)") }
         if characteristic.uuid == Gatt.credentials, let value = characteristic.value {
             password = String(decoding: value, as: UTF8.self)
             return
         }
         guard characteristic.uuid == Gatt.status, let value = characteristic.value, let status = PhoneStatus(value) else { return }
         // Re-read the password whenever the hotspot comes on, in case it was changed on the phone.
+        if status.hotspot != state.status?.hotspot { note("phone hotspot \(status.hotspot.rawValue)") }
         if status.hotspot == .on, state.status?.hotspot != .on, let credentials { peripheral.readValue(for: credentials) }
         state.status = status
         tick()
     }
 
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-        if let error { log("command failed: \(error.localizedDescription)") }
+        if let error { note("command failed: \(error.localizedDescription)") }
+    }
+
+    /// Logs, and with debug notifications on also posts the line as a notification.
+    private func note(_ message: String) {
+        log(message)
+        guard Settings.debugNotifications else { return }
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert]) { granted, _ in
+            guard granted else { return }
+            let content = UNMutableNotificationContent()
+            content.title = "TetherLink"
+            content.body = message
+            center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        }
     }
 
     /// The phone restarted its GATT service (app update, service restart): the old characteristics
     /// are gone, so rediscover and re-subscribe instead of writing into the void.
     func peripheral(_ peripheral: CBPeripheral, didModifyServices invalidatedServices: [CBService]) {
-        log("phone's service changed; rediscovering")
+        note("phone's service changed; rediscovering")
         command = nil
         credentials = nil
         peripheral.discoverServices([Gatt.service])

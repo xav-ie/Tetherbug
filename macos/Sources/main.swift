@@ -9,6 +9,7 @@ let usage = """
       enable     ask the phone to turn its hotspot on
       disable    ask the phone to turn its hotspot off
       watch      print the state every time it changes (one JSON line each)
+      debug      on|off: post a notification for everything the agent does
     """
 
 func describe(_ s: AgentState) -> String {
@@ -42,6 +43,13 @@ case "agent":
     Agent().run()
 case "status", "enable", "disable", "watch":
     cli(args.first!, json: args.contains("--json"))
+case "debug":
+    switch args.dropFirst().first {
+    case "on": Settings.debugNotifications = true
+    case "off": Settings.debugNotifications = false
+    default: break
+    }
+    print("debug notifications \(Settings.debugNotifications ? "on" : "off")")
 case "render-icon": // internal: build.sh renders the app icon with this
     renderIconset(to: args.dropFirst().first ?? "AppIcon.iconset")
 case "-h", "--help", "help":

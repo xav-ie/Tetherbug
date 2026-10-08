@@ -69,6 +69,12 @@ enum Settings {
         get { defaults.object(forKey: "disableWhenBack") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "disableWhenBack") }
     }
+
+    /// Post a notification for everything the agent does, for debugging.
+    static var debugNotifications: Bool {
+        get { defaults.bool(forKey: "debugNotifications") }
+        set { defaults.set(newValue, forKey: "debugNotifications") }
+    }
 }
 
 /// The agent's local socket, used by the app and the CLI.

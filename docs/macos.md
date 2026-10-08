@@ -42,6 +42,7 @@ tether-link status          # phone, hotspot state, battery, signal (--json for 
 tether-link enable          # ask the phone to turn its hotspot on
 tether-link disable         # ...or off
 tether-link watch           # one JSON line every time the state changes
+tether-link debug on        # notify for everything the agent does (off to stop)
 ```
 
 Using SketchyBar? See [TetherLink in SketchyBar](sketchybar.md).

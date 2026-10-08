@@ -176,7 +176,7 @@ private struct KeyboardNavigation: ViewModifier {
             .focused($windowFocused)
             .onAppear { windowFocused = true }
             // macOS delivers Shift-Tab as its own back-tab character (U+0019), not as Tab with Shift.
-            .onKeyPress(keys: [.tab, KeyEquivalent("\u{19}")], phases: .down) { press in
+            .onKeyPress(keys: [.tab, KeyEquivalent("\u{19}")], phases: [.down, .repeat]) { press in
                 let back = press.key == KeyEquivalent("\u{19}") || press.modifiers.contains(.shift)
                 focus.move(by: back ? -1 : 1)
                 return .handled
@@ -305,6 +305,57 @@ struct WindowSurface: View {
                                startPoint: .topLeading, endPoint: .bottomTrailing),
                 lineWidth: 1.5))
             .overlay(shape.inset(by: 1.5).strokeBorder(Color.black.opacity(0.25), lineWidth: 1))
+    }
+}
+
+/// The hotspot switch: like the others, but with a third, unknown state — knob centred and disabled
+/// until the phone has reported a state it can actually change.
+struct HotspotSwitch: View {
+    /// nil while the hotspot's state isn't known yet.
+    let isOn: Bool?
+    let enabled: Bool
+    let palette: Palette
+    let set: (Bool) -> Void
+
+    var body: some View {
+        HStack {
+            Text("Hotspot")
+            Spacer()
+            Button(action: flip) {
+                ZStack(alignment: isOn == true ? .trailing : isOn == false ? .leading : .center) {
+                    Capsule()
+                        .fill((isOn == true ? palette.onTrack : palette.offTrack)
+                            .shadow(.inner(color: .black.opacity(0.45), radius: 4, x: 3, y: 3))
+                            .shadow(.inner(color: palette.highlight, radius: 1.5, x: -1, y: -1)))
+                        .frame(width: 46, height: 26)
+                    Circle()
+                        .fill(LinearGradient(colors: [palette.surfaceTop, palette.surfaceBottom],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .overlay(Circle().strokeBorder(
+                            LinearGradient(colors: [Color.white.opacity(0.6), .clear, Color.black.opacity(0.6)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing),
+                            lineWidth: 1.6))
+                        .shadow(color: .black.opacity(0.6), radius: 2.5, x: 1.5, y: 2)
+                        .frame(width: 20, height: 20)
+                        .padding(3)
+                }
+                .animation(.snappy(duration: 0.18), value: isOn)
+            }
+            .buttonStyle(.plain)
+            .disabled(!enabled)
+            .keyboardFocusable(palette, radius: 13, action: flip)
+            .opacity(enabled ? 1 : 0.4)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Hotspot")
+        .accessibilityValue(isOn == nil ? "unknown" : isOn! ? "on" : "off")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { flip() }
+    }
+
+    private func flip() {
+        guard enabled, let isOn else { return }
+        set(!isOn)
     }
 }
 

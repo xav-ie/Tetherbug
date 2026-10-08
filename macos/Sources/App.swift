@@ -153,45 +153,52 @@ struct ContentView: View {
     }
 
     @ViewBuilder private func status(_ palette: Palette) -> some View {
-        if let state = model.state {
-            if state.connected, let phone = state.status {
-                Label("\(state.phone ?? "Phone") is connected", systemImage: "iphone.radiowaves.left.and.right")
-                    .font(.headline)
-                Toggle(isOn: Binding(
-                    get: { phone.hotspot == .on || phone.hotspot == .starting },
-                    set: { model.send($0 ? "enable" : "disable") }
-                )) {
-                    // Off and on are clear from the switch; only the in-between states need words.
-                    Text(phone.hotspot == .starting ? "Hotspot (starting…)" : phone.hotspot == .failed ? "Hotspot (failed)" : "Hotspot")
-                }
-                // Only switchable once the phone has reported its state and says it can switch it.
-                .disabled(!phone.controllable || phone.hotspot == .starting)
-                if !phone.controllable {
-                    Text("Shizuku isn't ready on your phone, so it can't switch the hotspot. Open TetherLink there.")
-                        .font(.caption).opacity(0.7)
-                }
-                if !phone.ssid.isEmpty {
-                    HStack {
-                        Text("Network")
-                        Spacer()
-                        Text(phone.ssid).font(.system(.body, design: .monospaced)).textSelection(.enabled)
-                    }
-                    .accessibilityElement(children: .combine)
-                }
-                PasswordRow(model: model, palette: palette)
-                // The phone's own cellular signal to its carrier, which limits the hotspot's speed.
-                Text("Phone battery \(phone.battery)% · Cell signal \(phone.signal)/4").font(.caption).opacity(0.7)
+        let state = model.state
+        let phone = state?.connected == true ? state?.status : nil
+        if let state {
+            if state.connected {
+                Label("\(state.phone ?? "Phone") is connected", systemImage: "iphone.radiowaves.left.and.right").font(.headline)
             } else if state.bluetooth != "on" {
-                Label("Bluetooth is \(state.bluetooth)", systemImage: "exclamationmark.triangle")
+                Label("Bluetooth is \(state.bluetooth)", systemImage: "exclamationmark.triangle").font(.headline)
             } else {
-                Label("Looking for your phone…", systemImage: "antenna.radiowaves.left.and.right")
-                Text("Make sure TetherLink is running on your phone and it's paired with this Mac.")
-                    .font(.caption).opacity(0.7)
-                SiteLink("How to pair", url: Links.pairing, palette: palette).font(.caption)
+                Label("Looking for your phone…", systemImage: "antenna.radiowaves.left.and.right").font(.headline)
             }
         } else {
-            Label("The background agent isn't running", systemImage: "moon.zzz")
+            Label("The background agent isn't running", systemImage: "moon.zzz").font(.headline)
+        }
+
+        // Unknown (knob centred, disabled) until the phone reports a state it can change; starting
+        // is in-between too. Failed counts as off so it can be retried.
+        HotspotSwitch(
+            isOn: phone.flatMap { $0.hotspot == .on ? true : ($0.hotspot == .off || $0.hotspot == .failed) ? false : nil },
+            enabled: phone?.controllable == true && phone?.hotspot != .starting,
+            palette: palette
+        ) { model.send($0 ? "enable" : "disable") }
+
+        if let phone {
+            if phone.hotspot == .failed {
+                Text("The phone couldn't switch its hotspot. Try again, or check TetherLink on the phone.").font(.caption).opacity(0.7)
+            }
+            if !phone.controllable {
+                Text("Shizuku isn't ready on your phone, so it can't switch the hotspot. Open TetherLink there.")
+                    .font(.caption).opacity(0.7)
+            }
+            if !phone.ssid.isEmpty {
+                HStack {
+                    Text("Network")
+                    Spacer()
+                    Text(phone.ssid).font(.system(.body, design: .monospaced)).textSelection(.enabled)
+                }
+                .accessibilityElement(children: .combine)
+            }
+            PasswordRow(model: model, palette: palette)
+            // The phone's own cellular signal to its carrier, which limits the hotspot's speed.
+            Text("Cell signal \(phone.signal)/4").font(.caption).opacity(0.7)
+        } else if state == nil {
             Text("Turn on “Run in the background” below to start it.").font(.caption).opacity(0.7)
+        } else if state?.connected != true, state?.bluetooth == "on" {
+            Text("Make sure TetherLink is running on your phone and it's paired with this Mac.").font(.caption).opacity(0.7)
+            SiteLink("How to pair", url: Links.pairing, palette: palette).font(.caption)
         }
     }
 }

@@ -50,6 +50,8 @@ sequenceDiagram
 
 ### The pieces
 
+**On the Mac**
+
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Helvetica, Arial, sans-serif', 'primaryColor': '#281336', 'primaryTextColor': '#fff17b', 'primaryBorderColor': '#fff17b', 'lineColor': '#fff17b', 'textColor': '#fff17b', 'clusterBkg': '#12081a', 'clusterBorder': '#51d136', 'titleColor': '#51d136', 'edgeLabelBackground': '#12081a', 'actorBkg': '#281336', 'actorBorder': '#fff17b', 'actorTextColor': '#fff17b', 'actorLineColor': '#fff17b', 'signalColor': '#fff17b', 'signalTextColor': '#fff17b', 'noteBkgColor': '#281336', 'noteTextColor': '#51d136', 'noteBorderColor': '#51d136'}}}%%
 flowchart LR
@@ -58,19 +60,33 @@ flowchart LR
         subgraph mac [Mac]
             window[TetherLink window]
             cli[tether-link CLI / SketchyBar]
-            agent[Background agent]
             sock([agent.sock])
+            agent[Background agent]
             window --> sock
             cli --> sock
             sock --> agent
         end
+        phone([Phone])
+        agent <-- "BLE: status, commands, password" --> phone
+    end
+    style frame fill:#12081a,stroke:#12081a
+```
+
+**On the phone**
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'fontFamily': 'Helvetica, Arial, sans-serif', 'primaryColor': '#281336', 'primaryTextColor': '#fff17b', 'primaryBorderColor': '#fff17b', 'lineColor': '#fff17b', 'textColor': '#fff17b', 'clusterBkg': '#12081a', 'clusterBorder': '#51d136', 'titleColor': '#51d136', 'edgeLabelBackground': '#12081a', 'actorBkg': '#281336', 'actorBorder': '#fff17b', 'actorTextColor': '#fff17b', 'actorLineColor': '#fff17b', 'signalColor': '#fff17b', 'signalTextColor': '#fff17b', 'noteBkgColor': '#281336', 'noteTextColor': '#51d136', 'noteBorderColor': '#51d136'}}}%%
+flowchart LR
+    subgraph frame [" "]
+        direction LR
+        mac([Mac])
         subgraph phone [Android phone]
             service[TetherLink service]
             shizuku[Shizuku]
             tethering[Tethering + Wi-Fi services]
             service --> shizuku --> tethering
         end
-        agent <-- "BLE: status, commands, password" --> service
+        mac <-- "BLE: status, commands, password" --> service
     end
     style frame fill:#12081a,stroke:#12081a
 ```

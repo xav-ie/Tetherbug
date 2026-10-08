@@ -48,9 +48,15 @@ extension View {
                 .fill(LinearGradient(colors: [palette.surfaceTop, palette.surfaceBottom],
                                      startPoint: UnitPoint(x: 0.21, y: 0.05), endPoint: UnitPoint(x: 0.79, y: 0.95)))
                 .overlay(Image(nsImage: noise).resizable(resizingMode: .tile).clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous)))
-                .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Color.white.opacity(0.08)))
-                .shadow(color: palette.shadow, radius: 7, x: 6, y: 6)
-                .shadow(color: palette.highlight.opacity(0.6), radius: 2, x: -2, y: -2)
+                // Inset bevel: a light top-left edge fading out, like the site's inset highlight.
+                .overlay(
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(LinearGradient(colors: [Color.white.opacity(0.14), .clear],
+                                                     startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
+                )
+                // One soft drop shadow down-right; the site's own shadow tone vanishes on #12081a.
+                .compositingGroup()
+                .shadow(color: Color.black.opacity(0.45), radius: 10, x: 4, y: 6)
         )
     }
 }
@@ -72,25 +78,32 @@ struct Card<Content: View>: View {
     }
 }
 
-/// Bubble buttons in the site's colours; `primary` swaps to the foreground fill.
-struct BubbleButtonStyle: ButtonStyle {
+/// Label on the left, a switch in the site's style pinned to the trailing edge: green track when on,
+/// bubble track when off, yellow knob. Drawn by hand so it doesn't go grey when the window loses focus.
+struct TrailingSwitchStyle: ToggleStyle {
     let palette: Palette
-    var primary = false
     @Environment(\.isEnabled) private var enabled
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .padding(.horizontal, 16).padding(.vertical, 9)
-            .foregroundStyle(primary ? palette.background : palette.foreground)
-            .background {
-                if primary {
-                    Capsule().fill(palette.foreground)
-                } else {
-                    Color.clear.bubble(palette, radius: 20)
-                }
+        HStack {
+            configuration.label
+            Spacer()
+            ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                Capsule()
+                    .fill(configuration.isOn ? palette.alt : palette.surfaceBottom)
+                    .overlay(Capsule().strokeBorder(Color.white.opacity(0.1)))
+                    .frame(width: 42, height: 24)
+                Circle()
+                    .fill(palette.foreground)
+                    .shadow(color: .black.opacity(0.35), radius: 2, x: 1, y: 1)
+                    .frame(width: 18, height: 18)
+                    .padding(3)
             }
-            .opacity(enabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .opacity(enabled ? 1 : 0.4)
+            .contentShape(Capsule())
+            .onTapGesture { withAnimation(.snappy(duration: 0.18)) { configuration.isOn.toggle() } }
+            .accessibilityAddTraits(.isButton)
+        }
     }
 }
 

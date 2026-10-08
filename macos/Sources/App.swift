@@ -2,13 +2,20 @@ import AppKit
 import ServiceManagement
 import SwiftUI
 
-/// The mascot, drawn from the outline design/icon.py generates: space-separated `Mx,y`, `Lx,y` and `Z` tokens.
-struct Buddy: Shape {
+/// A filled shape from flattened path data (design/icon.py): space-separated `Mx,y`, `Lx,y` and `Z`
+/// tokens in a unit square, drawn even-odd and fitted to the rect at the given aspect ratio.
+struct PathShape: Shape {
+    let data: String
+    var aspect: Double = 1
+
+    static let buddy = PathShape(data: buddyPathData, aspect: buddyAspect)
+    static let github = PathShape(data: githubPathData)
+
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let side = min(rect.width, rect.height * buddyAspect)
+        let side = min(rect.width, rect.height * aspect)
         let origin = CGPoint(x: rect.midX - side / 2, y: rect.midY - side / 2)
-        for token in buddyPathData.split(separator: " ") {
+        for token in data.split(separator: " ") {
             let command = token.first!
             if command == "Z" { path.closeSubpath(); continue }
             let xy = token.dropFirst().split(separator: ",").compactMap { Double($0) }
@@ -38,6 +45,18 @@ final class AgentModel: ObservableObject {
                 }
                 if !connected { DispatchQueue.main.async { self?.state = nil } }
                 Thread.sleep(forTimeInterval: 1)
+            }
+        }
+    }
+
+    /// The hotspot password, fetched on demand from the agent (it isn't in the status stream).
+    @Published var password: String?
+
+    func fetchPassword() {
+        DispatchQueue.global().async {
+            SocketClient.request("password") { state in
+                DispatchQueue.main.async { self.password = state.password }
+                return false
             }
         }
     }
@@ -73,25 +92,17 @@ struct ContentView: View {
     var body: some View {
         let palette = Palette.current(scheme)
         VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .center, spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("TetherLink").font(.custom("Palatino", size: 34).weight(.semibold))
                     Text("Instant Hotspot for your Mac").opacity(0.75)
                 }
                 Spacer()
-                Buddy().fill(palette.foreground, style: FillStyle(eoFill: true)).frame(width: 96, height: 60)
+                PathShape.buddy.fill(palette.foreground, style: FillStyle(eoFill: true)).frame(width: 96, height: 60)
+                WindowControls(palette: palette)
             }
 
             Card(palette: palette) { status(palette) }
-
-            HStack(spacing: 12) {
-                Button("Turn hotspot on") { model.send("enable") }
-                    .buttonStyle(BubbleButtonStyle(palette: palette, primary: true))
-                    .keyboardShortcut(.defaultAction)
-                Button("Turn hotspot off") { model.send("disable") }
-                    .buttonStyle(BubbleButtonStyle(palette: palette))
-            }
-            .disabled(!(model.state?.connected ?? false))
 
             Card(palette: palette, title: "Settings") {
                 Toggle("Ask for the hotspot when Wi-Fi drops", isOn: $model.onNoWifi)
@@ -115,9 +126,15 @@ struct ContentView: View {
 
             HStack(spacing: 16) {
                 Group {
-                    Link("Setup guide", destination: Links.setup)
-                    Link("Get the phone app", destination: Links.releases)
-                    Link("GitHub", destination: Links.repo)
+                    Link(destination: Links.setup) { Label("Setup guide", systemImage: "book.closed") }
+                    Link(destination: Links.releases) { Label("Phone app", systemImage: "smartphone") }
+                    Link(destination: Links.repo) {
+                        Label {
+                            Text("GitHub")
+                        } icon: {
+                            PathShape.github.fill(style: FillStyle(eoFill: true)).frame(width: 13, height: 13)
+                        }
+                    }
                 }
                 .foregroundStyle(palette.alt)
                 Spacer()
@@ -126,15 +143,14 @@ struct ContentView: View {
             }
             .font(.callout)
         }
-        .padding(.horizontal, 28)
-        .padding(.top, 44)
+        .padding(.horizontal, 18)
+        .padding(.top, 22)
         .padding(.bottom, 26)
         .frame(width: 500)
         .foregroundStyle(palette.foreground)
         .tint(palette.alt)
-        .toggleStyle(.switch)
+        .toggleStyle(TrailingSwitchStyle(palette: palette))
         .background(palette.background.overlay(Image(nsImage: noise).resizable(resizingMode: .tile)).ignoresSafeArea())
-        .overlay(alignment: .topTrailing) { WindowControls(palette: palette).padding(14) }
     }
 
     @ViewBuilder private func status(_ palette: Palette) -> some View {
@@ -142,8 +158,25 @@ struct ContentView: View {
             if state.connected, let phone = state.status {
                 Label("\(state.phone ?? "Phone") is connected", systemImage: "iphone.radiowaves.left.and.right")
                     .font(.headline)
-                Text("Hotspot \(phone.hotspot.rawValue)\(phone.ssid.isEmpty ? "" : " · \(phone.ssid)")")
-                Text("Battery \(phone.battery)% · Signal \(phone.signal)/4").opacity(0.7)
+                Toggle(isOn: Binding(
+                    get: { phone.hotspot == .on || phone.hotspot == .starting },
+                    set: { model.send($0 ? "enable" : "disable") }
+                )) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Hotspot")
+                        Text(phone.ssid.isEmpty ? phone.hotspot.rawValue.capitalized : "Network: \(phone.ssid)")
+                            .font(.caption).opacity(0.7)
+                    }
+                }
+                // Only switchable once the phone has reported its state and says it can switch it.
+                .disabled(!phone.controllable || phone.hotspot == .starting)
+                if !phone.controllable {
+                    Text("Shizuku isn't ready on your phone, so it can't switch the hotspot. Open TetherLink there.")
+                        .font(.caption).opacity(0.7)
+                }
+                PasswordRow(model: model, palette: palette)
+                // The phone's own cellular signal to its carrier, which limits the hotspot's speed.
+                Text("Phone battery \(phone.battery)% · Cell signal \(phone.signal)/4").font(.caption).opacity(0.7)
             } else if state.bluetooth != "on" {
                 Label("Bluetooth is \(state.bluetooth)", systemImage: "exclamationmark.triangle")
             } else {
@@ -155,6 +188,38 @@ struct ContentView: View {
         } else {
             Label("The background agent isn't running", systemImage: "moon.zzz")
             Text("Turn on “Run in the background” below to start it.").font(.caption).opacity(0.7)
+        }
+    }
+}
+
+/// The hotspot password, hidden until asked for; Copy puts it on the clipboard.
+struct PasswordRow: View {
+    @ObservedObject var model: AgentModel
+    let palette: Palette
+    @State private var shown = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text("Password")
+            Spacer()
+            Text(shown ? (model.password ?? "…") : "••••••••").font(.system(.body, design: .monospaced)).textSelection(.enabled)
+            Group {
+                Button(shown ? "Hide" : "Show") {
+                    if !shown { model.fetchPassword() }
+                    shown.toggle()
+                }
+                Button("Copy") {
+                    model.fetchPassword()
+                    // Copy once the agent has replied.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        guard let password = model.password else { return }
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(password, forType: .string)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(palette.alt)
         }
     }
 }
@@ -179,7 +244,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.standardWindowButton(button)?.isHidden = true
         }
         NSApp.mainMenu = mainMenu()
-        window.contentView = NSHostingView(rootView: ContentView(model: model))
+        let hosting = NSHostingView(rootView: ContentView(model: model))
+        // Draw under the (hidden) title bar too, instead of leaving a strip for it.
+        hosting.safeAreaRegions = []
+        window.contentView = hosting
         window.setContentSize(window.contentView!.fittingSize)
         window.center()
         window.makeKeyAndOrderFront(nil)

@@ -21,7 +21,7 @@ func renderIconset(to dir: String) -> Never {
         // Glyph centred on the tile, 76% of its width. SwiftUI paths are y-down; flip for CoreGraphics.
         let glyph = tile.insetBy(dx: tile.width * 0.12, dy: tile.height * 0.12)
         var flip = CGAffineTransform(translationX: 0, y: size).scaledBy(x: 1, y: -1)
-        if let path = Buddy().path(in: glyph).cgPath.copy(using: &flip) {
+        if let path = PathShape.buddy.path(in: glyph).cgPath.copy(using: &flip) {
             ctx.addPath(path)
             ctx.setFillColor(yellow)
             ctx.fillPath(using: .evenOdd)

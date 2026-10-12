@@ -1,5 +1,0 @@
----
-default: patch
----
-
-# Android builds carry their own version, so F-Droid and IzzyOnDroid can build and check them

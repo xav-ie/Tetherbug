@@ -1,4 +1,10 @@
 # Changelog
+## 0.1.1 (2026-10-12)
+
+### Fixes
+
+- Android builds carry their own version, so F-Droid and IzzyOnDroid can build and check them
+
 ## 0.1.0 (2026-10-11)
 
 ### Features

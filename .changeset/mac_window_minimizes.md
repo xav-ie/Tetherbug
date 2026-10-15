@@ -1,5 +1,0 @@
----
-default: patch
----
-
-# The Mac window minimizes again, from its minimize button, ⌘M or VoiceOver

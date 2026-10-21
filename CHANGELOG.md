@@ -1,4 +1,10 @@
 # Changelog
+## 0.1.2 (2026-10-21)
+
+### Fixes
+
+- The Mac window minimizes again, from its minimize button, ⌘M or VoiceOver
+
 ## 0.1.1 (2026-10-12)
 
 ### Fixes

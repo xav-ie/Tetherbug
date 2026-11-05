@@ -1,7 +1,7 @@
 plugins {
-    id("com.android.application") version "9.4.1"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.4.20"
-    id("io.github.takahirom.roborazzi") version "1.76.0"
+    id("com.android.application") version "9.5.0"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21"
+    id("io.github.takahirom.roborazzi") version "1.77.0"
 }
 
 // Release signing comes from the environment (CI decodes the keystore from repo secrets); without
@@ -76,11 +76,11 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.5.0-alpha24")
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
-    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
+    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.2")
 
     testImplementation(platform("androidx.compose:compose-bom:2026.09.00"))
     testImplementation("androidx.compose.ui:ui-test-junit4")
-    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.76.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.77.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.17")
 }
